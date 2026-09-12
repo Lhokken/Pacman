@@ -1,0 +1,194 @@
+{
+    "highscore_filename": "highscores.json",
+    "lives": 3,
+    "extra_life_score": 10000,
+    "pacgum": 42,
+    "points_per_pacgum": 10,
+    "points_per_super_pacgum": 50,
+    "points_per_ghost": 200,
+    "ghost_combo_multiplier": [200, 400, 800, 1600],
+    "seed": 42,
+    "level_max_time": 110,
+    "levels": [
+        {
+            "level_num": 1,
+            "width": 21,
+            "height": 21,
+            "fruit": "cherry",
+            "fruit_points": 100,
+            "ghost_speed_multiplier": 0.75,
+            "mode_phases": [
+                {"mode": "scatter", "duration": 7},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 7},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": -1}
+            ]
+        },
+        {
+            "level_num": 2,
+            "width": 21,
+            "height": 21,
+            "fruit": "strawberry",
+            "fruit_points": 300,
+            "ghost_speed_multiplier": 0.80,
+            "mode_phases": [
+                {"mode": "scatter", "duration": 7},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 7},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": -1}
+            ]
+        },
+        {
+            "level_num": 3,
+            "width": 21,
+            "height": 21,
+            "fruit": "orange",
+            "fruit_points": 500,
+            "ghost_speed_multiplier": 0.85,
+            "mode_phases": [
+                {"mode": "scatter", "duration": 7},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 7},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": -1}
+            ]
+        },
+        {
+            "level_num": 4,
+            "width": 21,
+            "height": 21,
+            "fruit": "orange",
+            "fruit_points": 500,
+            "ghost_speed_multiplier": 0.90,
+            "mode_phases": [
+                {"mode": "scatter", "duration": 7},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 7},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": -1}
+            ]
+        },
+        {
+            "level_num": 5,
+            "width": 21,
+            "height": 21,
+            "fruit": "apple",
+            "fruit_points": 700,
+            "ghost_speed_multiplier": 0.95,
+            "mode_phases": [
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": -1}
+            ]
+        },
+        {
+            "level_num": 6,
+            "width": 21,
+            "height": 21,
+            "fruit": "apple",
+            "fruit_points": 700,
+            "ghost_speed_multiplier": 1.00,
+            "mode_phases": [
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": -1}
+            ]
+        },
+        {
+            "level_num": 7,
+            "width": 21,
+            "height": 21,
+            "fruit": "melon",
+            "fruit_points": 1000,
+            "ghost_speed_multiplier": 1.05,
+            "mode_phases": [
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": -1}
+            ]
+        },
+        {
+            "level_num": 8,
+            "width": 21,
+            "height": 21,
+            "fruit": "melon",
+            "fruit_points": 1000,
+            "ghost_speed_multiplier": 1.10,
+            "mode_phases": [
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": -1}
+            ]
+        },
+        {
+            "level_num": 9,
+            "width": 21,
+            "height": 21,
+            "fruit": "galaxian",
+            "fruit_points": 2000,
+            "ghost_speed_multiplier": 1.15,
+            "mode_phases": [
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": -1}
+            ]
+        },
+        {
+            "level_num": 10,
+            "width": 21,
+            "height": 21,
+            "fruit": "galaxian",
+            "fruit_points": 2000,
+            "ghost_speed_multiplier": 1.20,
+            "mode_phases": [
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": 20},
+                {"mode": "scatter", "duration": 5},
+                {"mode": "chase", "duration": -1}
+            ]
+        }
+    ]
+}
