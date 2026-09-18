@@ -8,8 +8,41 @@ from typing import Optional
 
 import pygame
 from pygame.surface import Surface
+from dataclasses import dataclass, field
+
+from .asset_exceptions import AssetNotFoundError
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class GhostSprites:
+    """Ghost sprites, organized by state/direction."""
+
+    # Sostituisce la vecchia coppia (ghost_images, ghost_frames).
+    static: Optional[Surface] = None
+    look_up:    list[Surface] = field(default_factory=list)
+    look_down:  list[Surface] = field(default_factory=list)
+    look_left:  list[Surface] = field(default_factory=list)
+    look_right: list[Surface] = field(default_factory=list)
+    dead:       list[Surface] = field(default_factory=list)
+
+    def frames_for_direction(self, direction: str) -> list[Surface]:
+        """Frame for the given direction ('up'|'down'|'left'|'right')."""
+        return {
+            "up":    self.look_up,
+            "down":  self.look_down,
+            "left":  self.look_left,
+            "right": self.look_right,
+        }.get(direction, self.look_right)
+
+    def first_frame(self) -> Optional[Surface]:
+        """First available frame, with fallbacks in order of priority."""
+        for lst in (self.look_right, self.look_left,
+                    self.look_up, self.look_down, self.dead):
+            if lst:
+                return lst[0]
+        return self.static
 
 
 class AssetManager:
@@ -26,7 +59,7 @@ class AssetManager:
         ghost_images: List of 4 ghost Surfaces (may contain None).
         pacgum_img: Small dot sprite.
         super_pacgum_img: Power pellet sprite.
-        fruit_icon: Fruit icon for panel.
+        logo_icon: logo icon for panel.
         pacman_icon: Pac-Man icon for lives panel.
     """
 
@@ -42,15 +75,35 @@ class AssetManager:
         self.load_all()
 
     def load_all(self) -> None:
-        """Load or reload all assets using current tile size."""
+        """FA TODO: Docstring."""
         self.player_frames, self.player_img = self._load_player()
         self.wall_tiles = self._load_wall_tiles()
         self.intersection_tiles = self._load_intersection_tiles()
         self.border_tiles = self._load_border_tiles()
-        self.ghost_images, self.ghost_frames = self._load_ghosts()
+
+        self.ghosts, self.ghost_shared = self._load_ghosts()
+
+        self.ghost_images = [
+            frame for n in ("blinky", "pinky", "inky", "clyde")
+            if (frame := self.ghosts[n].first_frame()) is not None
+        ]
+        # Backwards compatibility: for older code that expects a list of
+        # per-ghost animation frame lists named `ghost_frames`, provide
+        # a best-effort mapping from the new `GhostSprites` structure.
+        self.ghost_frames: list[list[Surface] | list[Surface | None]] = [
+            (
+                self.ghosts[n].look_right
+                or self.ghosts[n].look_left
+                or self.ghosts[n].look_up
+                or self.ghosts[n].look_down
+                or self.ghosts[n].dead
+                or ([self.ghosts[n].static] if self.ghosts[n].static else [])
+            )
+            for n in ("blinky", "pinky", "inky", "clyde")
+        ]
+
         self.pacgum_img = self._load_pacgum()
         self.super_pacgum_img = self._load_super_pacgum()
-        self.fruit_icon = self._load_fruit_icon()
         self.pacman_icon = self._load_pacman_icon()
         self._ensure_assets_available()
 
@@ -234,93 +287,83 @@ class AssetManager:
     # --------------------------------------------------------------------
     def _load_ghosts(
         self
-    ) -> tuple[list[Optional[Surface]], list[list[Surface]]]:
-        """Load ghost sprites and animation frames.
+    ) -> tuple[dict[str, GhostSprites], dict[str, list[Surface]]]:
+        """Carica tutti gli sprite dei ghost.
 
         Returns:
-            A tuple (static_images, animation_frames).
-            static_images: first frame (or None) for each ghost.
-            animation_frames: list of frame lists for idle animation.
+            (ghosts, shared_frames) dove:
+            ghosts: dict name → GhostSprites
+            shared_frames: {"fear": [...], "fear_flash": [...]}
         """
-        assets_base = self.assets_base / "ghost"
-        static_images: list[Optional[Surface]] = []
-        animation_frames: list[list[Surface]] = []
-        for name in [
-            "blinky",
-            "pinky",
-            "inky",
-            "clyde"
-        ]:
-            # -----------------------------------------------------------------
-            #   1. Load static ghost.png
-            # -----------------------------------------------------------------
-            path = (
-                assets_base / name / "ghost.png"
-            )
-            static_img = None
-            if path.exists():
+        base = self.assets_base / "ghost"
+        directions = ["look_up", "look_down", "look_left", "look_right"]
+
+        ghosts: dict[str, GhostSprites] = {}
+        for name in ["blinky", "pinky", "inky", "clyde"]:
+            sprites = GhostSprites()
+            ghost_dir = base / name
+
+            # Static ----------------------------------------------------------
+            static_path = ghost_dir / "ghost.png"
+            if static_path.exists():
                 try:
-                    img = pygame.image.load(path).convert_alpha()
-                    static_img = self._scale_entity_asset(
-                        img,
-                        ratio=0.8,
-                        min_size=12,
-                    )
+                    img = pygame.image.load(static_path).convert_alpha()
+                    sprites.static = self._scale_entity_asset(img, 0.8, 12)
                 except pygame.error as e:
-                    logger.error(
-                        "Failed to load ghost %s: %s", name, e
+                    raise AssetNotFoundError(
+                        f"Failed to load static ghost image {static_path}: {e}"
                     )
-            else:
-                logger.warning(
-                    "%s not found. Ghost %s won't be visible.",
-                    path,
-                    name
+            # Per ogni direzione ----------------------------------------------
+            for d in directions:
+                frames = (
+                    self._load_frame_list(
+                        ghost_dir / d, ratio=0.8, min_size=12
+                    )
                 )
-            static_images.append(static_img)
+                setattr(sprites, d, frames)
+                if not frames:
+                    logger.debug("No %s frames for %s", d, name)
 
-            # -----------------------------------------------------------------
-            #   2. Load animation frames from the actual ghost sprite folders.
-            # -----------------------------------------------------------------
-            animation_dirs = [
-                assets_base / name / "look_right",
-                assets_base / name / "look_right" / "direct",
-                assets_base / name / "look_right" / "straight_ahead",
-            ]
-            frames: list[Surface] = []
-            found_dir = False
-            for animation_dir in animation_dirs:
-                # commento
-                if not animation_dir.exists():
-                    continue
-                # commento
-                found_dir = True
-                frame_files = sorted(
-                    animation_dir.glob("*.png")
-                )
-                for frame_path in frame_files:
-                    try:
-                        frame = pygame.image.load(frame_path).convert_alpha()
-                        frame = self._scale_entity_asset(
-                            frame,
-                            ratio=0.8,
-                            min_size=12,
-                        )
-                        frames.append(frame)
-                    except pygame.error as e:
-                        logger.error(
-                            "Failed to load animation frame %s: %s",
-                            frame_path,
-                            e,
-                        )
-            if not found_dir:
-                logger.debug(
-                    "No animation directory found for ghost %s in %s",
-                    name,
-                    assets_base / name,
-                )
-            animation_frames.append(frames)
+            # Dead -----------------------------------------------------------
+            sprites.dead = self._load_frame_list(
+                ghost_dir / "status_dead", ratio=0.8, min_size=12
+            )
 
-        return static_images, animation_frames
+            ghosts[name] = sprites
+
+        # Fear (condivisi) ----------------------------------------------------
+        fear_dir = base / "status_fear" / "fear_status"
+        fear_going = base / "status_fear" / "fear_going"
+        shared = {
+            "fear":       self._load_frame_list(fear_dir,   0.8, 12),
+            "fear_flash": self._load_frame_list(fear_going, 0.8, 12),
+        }
+        if not shared["fear"]:
+            logger.warning("Frightened ghost frames missing: %s", fear_dir)
+        if not shared["fear_flash"]:
+            logger.debug("Fear flashing frames missing: %s", fear_going)
+
+        return ghosts, shared
+
+    def _load_frame_list(
+        self, folder: Path, ratio: float, min_size: int
+    ) -> list[Surface]:
+        """Carica tutti i *.png in una cartella, ordinati per nome."""
+        if not folder.exists():
+            return []
+        frames: list[Surface] = []
+        for f in sorted(folder.glob("*.png")):
+            try:
+                img = pygame.image.load(f).convert_alpha()
+                img = self._scale_entity_asset(
+                    img,
+                    ratio=ratio,
+                    min_size=min_size
+                )
+                frames.append(img)
+            except pygame.error as e:
+                logger.error("Failed to load %s: %s", f, e)
+        return frames
 
     # --------------------------------------------------------------------
     #   Helper to scale gum assets (pacgum, super-pacgum) proportionally
@@ -373,28 +416,6 @@ class AssetManager:
             return self._scale_gum_asset(img, ratio=0.4, min_size=8)
         except pygame.error as e:
             logger.error("Failed to load super-pacgum image: %s", e)
-            return None
-
-    # -------------------------------------------------------------------
-    #   Load fruit icon and scale it.
-    # -------------------------------------------------------------------
-    def _load_fruit_icon(self) -> Optional[Surface]:
-        path = self.assets_base / "fruit" / "cherry.png"
-        if not path.exists():
-            logger.warning("Fruit icon not found: %s", path)
-            # Fallback red circle
-            size = max(1, self.tile_size)
-            fallback = pygame.Surface((size, size), pygame.SRCALPHA)
-            pygame.draw.circle(
-                fallback, (255, 0, 0), (size // 2, size // 2), size // 2
-            )
-            return fallback
-        try:
-            img = pygame.image.load(path).convert_alpha()
-            size = max(1, self.tile_size)
-            return pygame.transform.scale(img, (size, size))
-        except pygame.error as e:
-            logger.error("Failed to load fruit icon: %s", e)
             return None
 
     # -------------------------------------------------------------------

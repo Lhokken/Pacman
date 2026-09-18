@@ -31,7 +31,7 @@ class ConfigHelper:
         key: str,
         min_value: int | None = None,
         max_value: int | None = None,
-    ) -> int:
+    ) -> int | Any:
         """Convert a value to int, falling back to default on error/range.
 
         If the value is not an integer (e.g., float, string, None), it is

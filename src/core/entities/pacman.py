@@ -62,6 +62,18 @@ class PacmanPlayer:
     WALL_BOTTOM = 4
     WALL_TOP = 1
 
+    INIT_DATA: dict[str, int] = {
+        "Lives": 0
+    }
+
+    CHEAT_DATA: dict[str, bool] = {
+        "invincible": False,
+        "level_skip": False,
+        "ghost_freeze": False,
+        "extra_lives": False,
+        "increased_speed": False
+    }
+
     def __init__(self, state_x: int, state_y: int,
                  maze: list[list[int]]) -> None:
         """Initialize the player with a starting position.
@@ -70,12 +82,14 @@ class PacmanPlayer:
             state_x: Starting column in the maze grid.
             state_y: Starting row in the maze grid.
         """
+        self.respawn = (state_x, state_y)
         self.grid_x = state_x
         self.grid_y = state_y
         self.from_x = state_x
         self.from_y = state_y
         self.to_x = state_x
         self.to_y = state_y
+        self.lives = self.INIT_DATA["Lives"]
         self.queued_direction: str | None = None
         self.is_moving = False
         self.move_started_ms = 0
@@ -89,6 +103,19 @@ class PacmanPlayer:
     # ======================================================================
     #   INPUT PLAYER
     # ======================================================================
+
+    @classmethod
+    def cheat_sync(cls, parameter: dict[str, str]) -> None:
+        for key, value in parameter.items():
+            if value == "OFF":
+                cls.CHEAT_DATA[key] = False
+            elif value == "ON":
+                cls.CHEAT_DATA[key] = True
+            print(f"{key}: {cls.CHEAT_DATA[key]}")
+
+    @classmethod
+    def init_data_set(cls, lives: int) -> None:
+        cls.INIT_DATA["Lives"] = lives
 
     @staticmethod
     def find_spawn(maze: list[list[int]]) -> tuple[int, int]:
@@ -186,14 +213,22 @@ class PacmanPlayer:
                 self.is_moving = False
                 self.move_started_ms = 0
                 score_gain = pacgums.try_to_eat(
+                    ghosts,
                     unit_x=self.grid_x,
                     unit_y=self.grid_y,
-                    ghost_positions=self.ghosts_positions
                 )
+                print("Pacman", player_position, self.lives)
+                print(self.CHEAT_DATA)
                 for ghost in ghosts:
-                    if (ghost.grid_y, ghost.grid_x) == player_position and \
-                            ghost.state == GhostState.FRIGHTENED:
-                        ghost.state = GhostState.EATEN
+                    if (ghost.grid_y, ghost.grid_x) == \
+                            (self.grid_y, self.grid_x):
+                        if ghost.state == GhostState.FRIGHTENED:
+                            # print(ghost.state)
+                            ghost.state = GhostState.EATEN
+                        elif ghost.state == GhostState.EATEN:
+                            pass
+                        elif ghost.state == GhostState.NORMAL:
+                            self.life_loss()
                 if score_gain > 0 and \
                     player_position in [
                         (0, 0),
@@ -202,6 +237,7 @@ class PacmanPlayer:
                         (self.maze_width - 1, self.maze_height - 1)]:
                     for ghost in ghosts:
                         ghost.state = GhostState.FRIGHTENED
+                        # print(ghost.state)
                 self._try_start_move()
         else:
             self._try_start_move()
@@ -211,7 +247,7 @@ class PacmanPlayer:
         """Start a movement if a direction is queued and the move is valid."""
         # ------------------------------------------------------------------
         #   DIREZIONE
-        # ------------------------------------------------------------------
+        # ----------------1--------------------------------------------------
         # PLACEHOLDER ------------------------------------------------------
         # TODO: Trasferire la scelta della destinazione e l'avvio del
         # movimento nel modulo core/movement.
@@ -251,3 +287,14 @@ class PacmanPlayer:
         if x < 0 or y < 0 or x >= self.maze_width or y >= self.maze_height:
             return True
         return (self.maze[y][x] & wall_bit) != 0
+
+    def life_loss(self) -> None:
+        """NOTE: life loss manager
+        TODO: connect with game over page"""
+        self.lives -= 1
+        self.grid_x = self.respawn[0]
+        self.grid_y = self.respawn[1]
+        self.from_x = self.respawn[0]
+        self.from_y = self.respawn[1]
+        self.to_x = self.respawn[0]
+        self.to_y = self.respawn[1]

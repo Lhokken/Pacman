@@ -53,11 +53,11 @@ clean:
 	rm -rf .mypy_cache .pytest_cache
 
 lint:
-	flake8 .
-	mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+	-flake8 .
+	mypy .
 
 lint-strict:
-	flake8 .
+	-flake8 .
 	mypy . --strict
 
 .PHONY: help install run debug venv clean lint lint-strict

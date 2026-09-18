@@ -1,8 +1,8 @@
 """User Interface Game Over Screen.
 
-    Game specifications - VI.8 Game Over Screen:
-    Displays the final score and Prompts the player to
-    enter their name to save the score in the highscores list.
+Game specifications - VI.8 Game Over Screen:
+Displays the final score and Prompts the player to
+enter their name to save the score in the highscores list.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pygame
-
+from pygame.surface import Surface
 from ..scene import Scene
 from ..components.button import Button
 from ..managers.font_manager import FontManager
@@ -39,7 +39,9 @@ class GameOverPage(Scene):
         # ------------------------------------------------------------------
         #   Assets and fonts
         # ------------------------------------------------------------------
-        assets_base = Path(__file__).resolve().parents[3] / "assets" / "img"
+        assets_base = (
+            Path(__file__).resolve().parents[3] / "assets" / "img"
+        )
         self.fonts = FontManager(assets_base)
         self.font_title = self.fonts.font_title_big
         self.font_text = self.fonts.font_white
@@ -76,6 +78,7 @@ class GameOverPage(Scene):
 
     def _layout_buttons(self, screen_width: int, screen_height: int) -> None:
         """Position the back button near the bottom.
+
         This method is called during the draw phase to ensure the button is
         always centered horizontally and positioned near the bottom of the
         screen, regardless of the screen size.
@@ -107,7 +110,7 @@ class GameOverPage(Scene):
                 elif event.key == pygame.K_ESCAPE:
                     self._go_back()
 
-    def draw(self, screen: pygame.Surface) -> None:
+    def draw(self, screen: Surface) -> None:
         """Render the game over screen.
 
         Renders the game over screen, including the title, final score, and

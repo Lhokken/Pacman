@@ -62,13 +62,14 @@ class GhostBase:
             start_x: int,
             start_y: int,
             ) -> None:
-        self.grid_x = start_x              # Current position x
-        self.grid_y = start_y              # Current position y
+        self.name: str                     # Ghost name
+        self.grid_x = start_x              # Current column
+        self.grid_y = start_y              # Current row
         self.direction: str | None = None  # Current direction
         self.speed = 1.0                   # Base speed
         self.state = GhostState.NORMAL     # Default behavioral state
         self.corner = (start_x, start_y)   # Corner cell for respawn
-        self.ghosts: tuple[int, int] | bool = (0, 0)
+        self.ghosts: list[GhostBase]       # tuple[int, int] | bool = (0, 0)
         self.set_timer: int = 30
         self.timer: int = self.set_timer
 
@@ -82,25 +83,22 @@ class GhostBase:
             width: int,
             rand: int
             ) -> tuple[int, int]:
-        y = ghost.grid_y
-        x = ghost.grid_x
+        ghost.name = "Blinky"
+        cls.debug_ghost(ghost)
+        row, col = (ghost.grid_y, ghost.grid_x)
         if ghost.state == GhostState.NORMAL:
-            y, x = cls.hunting(
-                maze, rand, player_pos, y, x, width, height)
+            row, col, = cls.hunting(
+                maze, rand, player_pos, row, col, width, height)
         elif ghost.state == GhostState.FRIGHTENED:
-            y, x = cls.get_flight_run(
-                (y, x), player_pos, width, height, maze, rand)
+            row, col = cls.get_flight_run(
+                (row, col), player_pos, width, height, maze, rand)
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            if ghost.corner == (y, x):
-                ghost.state = GhostState.NORMAL
-            else:
-                result = cls.bfs(maze, ghost.corner, (y, x))
-                if isinstance(result, tuple):
-                    y, x = result
-        cls.get_direction(ghost, y, x)
-        print(ghost.direction)
-        return (y, x)
+            row, col = cls.eaten_mod(ghost, maze, row, col)
+        cls.get_direction(ghost, row, col)
+        ghost.grid_y = row
+        ghost.grid_x = col
+        return (row, col)
 
     @classmethod  # nord est
     def clyde(
@@ -112,25 +110,22 @@ class GhostBase:
             width: int,
             rand: int
             ) -> tuple[int, int]:
-        y = ghost.grid_y
-        x = ghost.grid_x
+        ghost.name = "Clyde"
+        cls.debug_ghost(ghost)
+        row, col = (ghost.grid_y, ghost.grid_x)
         if ghost.state == GhostState.NORMAL:
-            y, x = cls.hunting(
-                maze, rand, player_pos, y, x, width, height)
+            row, col, = cls.hunting(
+                maze, rand, player_pos, row, col, width, height)
         elif ghost.state == GhostState.FRIGHTENED:
-            y, x = cls.get_flight_run(
-                (y, x), player_pos, width, height, maze, rand)
+            row, col = cls.get_flight_run(
+                (row, col), player_pos, width, height, maze, rand)
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            if ghost.corner == (y, x):
-                ghost.state = GhostState.NORMAL
-            else:
-                result = cls.bfs(maze, ghost.corner, (y, x))
-                if isinstance(result, tuple):
-                    y, x = result
-        cls.get_direction(ghost, y, x)
-        print(ghost.direction)
-        return (y, x)
+            row, col = cls.eaten_mod(ghost, maze, row, col)
+        cls.get_direction(ghost, row, col)
+        ghost.grid_y = row
+        ghost.grid_x = col
+        return (row, col)
 
     @classmethod  # sud ovest
     def inky(
@@ -142,25 +137,22 @@ class GhostBase:
             width: int,
             rand: int
             ) -> tuple[int, int]:
-        y = ghost.grid_y
-        x = ghost.grid_x
+        ghost.name = "Inky"
+        cls.debug_ghost(ghost)
+        row, col = (ghost.grid_y, ghost.grid_x)
         if ghost.state == GhostState.NORMAL:
-            y, x = cls.hunting(
-                maze, rand, player_pos, y, x, width, height)
+            row, col, = cls.hunting(
+                maze, rand, player_pos, row, col, width, height)
         elif ghost.state == GhostState.FRIGHTENED:
-            y, x = cls.get_flight_run(
-                (y, x), player_pos, width, height, maze, rand)
+            row, col = cls.get_flight_run(
+                (row, col), player_pos, width, height, maze, rand)
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            if ghost.corner == (y, x):
-                ghost.state = GhostState.NORMAL
-            else:
-                result = cls.bfs(maze, ghost.corner, (y, x))
-                if isinstance(result, tuple):
-                    y, x = result
-        cls.get_direction(ghost, y, x)
-        print(ghost.direction)
-        return (y, x)
+            row, col = cls.eaten_mod(ghost, maze, row, col)
+        cls.get_direction(ghost, row, col)
+        ghost.grid_y = row
+        ghost.grid_x = col
+        return (row, col)
 
     @classmethod  # sud est
     def pinky(
@@ -172,25 +164,50 @@ class GhostBase:
             width: int,
             rand: int
             ) -> tuple[int, int]:
-        y = ghost.grid_y
-        x = ghost.grid_x
+        ghost.name = "Pinky"
+        cls.debug_ghost(ghost)
+        row, col = (ghost.grid_y, ghost.grid_x)
         if ghost.state == GhostState.NORMAL:
-            y, x = cls.hunting(
-                maze, rand, player_pos, y, x, width, height)
+            row, col, = cls.hunting(
+                maze, rand, player_pos, row, col, width, height)
         elif ghost.state == GhostState.FRIGHTENED:
-            y, x = cls.get_flight_run(
-                (y, x), player_pos, width, height, maze, rand)
+            row, col = cls.get_flight_run(
+                (row, col), player_pos, width, height, maze, rand)
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            if ghost.corner == (y, x):
-                ghost.state = GhostState.NORMAL
-            else:
-                result = cls.bfs(maze, ghost.corner, (y, x))
-                if isinstance(result, tuple):
-                    y, x = result
-        cls.get_direction(ghost, y, x)
-        print(ghost.direction)
-        return (y, x)
+            row, col = cls.eaten_mod(ghost, maze, row, col)
+        ghost.grid_y = row
+        ghost.grid_x = col
+        cls.get_direction(ghost, row, col)
+        return (row, col)
+
+    @classmethod
+    def debug_ghost(cls, ghost: GhostBase) -> None:
+        print(
+            ghost.state,
+            ghost.name,
+            ghost.grid_y,
+            ghost.grid_x
+            )
+
+    @classmethod
+    def eaten_mod(
+            cls,
+            ghost: GhostBase,
+            maze: list[list[int]],
+            row: int,
+            col: int
+            ) -> tuple[int, int]:
+        print("test")
+        if ghost.corner == (row, col):
+            ghost.state = GhostState.NORMAL
+        else:
+            print("test1")
+            result = cls.bfs(maze, ghost.corner, (row, col))
+            print(result)
+            if isinstance(result, tuple):
+                row, col = result
+        return (row, col)
 
     @classmethod
     def team_ghost(
@@ -263,7 +280,7 @@ class GhostBase:
             cls, maze: list[list[int]],
             start: tuple[int, int],
             end: tuple[int, int]
-            ) -> bool | tuple[int, int]:
+            ) -> tuple[int, int]:
         """
         Find the shortest path from start to end using breadth-first search.
 
@@ -272,19 +289,12 @@ class GhostBase:
         reaching the end, back-traces via decreasing step values to recover
         the optimal path, storing it in cls.way (end → start order).
 
-        Returns:
-            bool: Always returns False. Returns early with False if no path
-                exists (end is unreachable).
-
         Side effects:
             cls.way (list[list[int]]): Set to the list of cell coordinates
                 along the shortest path, ordered from end to start.
         """
-        if cls.get_distance(start, end) > 25:
-            return False
         max_pos = sys.maxsize
         maz_path = [[max_pos for _ in row] for row in maze]
-
         queue: Deque[tuple[int, int]] = deque()
         cr = start  # cr = current position
         queue.append(cr)
@@ -301,7 +311,7 @@ class GhostBase:
                     queue.append(n)
                     visited.append(n)
         if cr != end:
-            return False
+            return end
         way = [cr]
         while cr != start:
             neighbours = cls.get_neighbours(cr[0], cr[1], maze)
@@ -309,9 +319,8 @@ class GhostBase:
                 if maz_path[n[0]][n[1]] == maz_path[cr[0]][cr[1]] - 1:
                     way.append(n)
                     cr = n
-                    # break
         if len(way) < 2:
-            return False
+            return end
         return way[1]
 
     @classmethod
@@ -328,12 +337,19 @@ class GhostBase:
         return distance
 
     @classmethod
-    def next_step(cls, y: int, x: int, maze, width, height) -> tuple[int, int]:
+    def next_step(
+            cls,
+            y: int,
+            x: int,
+            maze: list[list[int]],
+            width: int,
+            height: int
+            ) -> tuple[int, int]:
         directions = [
             Direction.NORD,
             Direction.SUD,
             Direction.OVEST,
-            Direction.SUD
+            Direction.EST
             ]
         while True:
             new_dir = directions[randint(0, 3)]
@@ -373,14 +389,14 @@ class GhostBase:
         x = ghost[1]
         if randint(0, 100) > rand:
             if player[0] > y:
-                y = max(y - 1, 0)
+                y = max(y - 2, 0)
             elif player[0] < y:
-                y = min(y + 1, width - 1)
+                y = min(y + 2, width - 1)
 
             if player[1] > x:
-                x = max(x - 1, 0)
+                x = max(x - 2, 0)
             elif player[1] < x:
-                x = min(x + 1, height - 1)
+                x = min(x + 2, height - 1)
 
             if maze[y][x] == 15:
                 return ghost
@@ -432,3 +448,8 @@ class GhostBase:
             ghost.direction = Direction.NORD
         elif y_start - y == -1:
             ghost.direction = Direction.SUD
+
+    @classmethod
+    def frighten_ghosts(cls, ghosts: list[GhostBase]) -> None:
+        for ghost in ghosts:
+            ghost.state = GhostState.FRIGHTENED

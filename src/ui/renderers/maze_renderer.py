@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import pygame
+from pygame.surface import Surface
 
 from ..managers.asset_manager import AssetManager
 
@@ -28,7 +28,7 @@ class MazeRenderer:
 
     def draw(
         self,
-        screen: pygame.Surface,
+        screen: Surface,
         origin_x: int,
         origin_y: int,
         tile_size: int,

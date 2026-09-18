@@ -1,90 +1,88 @@
-"""In-Game HUD for Pac-Man.
+"""In-Game HUD: tempo rimanente per il livello corrente.
 
-Displays current score, remaining lives, current level, and remaining
-time per level, as specified in VI.8 User Interface.
+Requisiti di progetto (MLX-compliance):
+    - Nessun uso di pygame.font.Font, pygame.draw, o altre primitive
+      che MLX non offre. Solo blit di superfici pre-renderizzate
+      tramite BitmapFont.
+    - Il tempo è calcolato in Python puro (time.monotonic), non via
+      pygame.time: stesso approccio della guida (gettimeofday in C).
+
+L'HUD non possiede il timer: lo riceve dal chiamante (GamePage) e
+lo renderizza. Pausa e resume del timer sono responsabilità della Page.
 """
 
 from __future__ import annotations
 
-import pygame
-from typing import TYPE_CHECKING
+from pygame.surface import Surface
 
-if TYPE_CHECKING:
-    from src.ui.app import GameApp
+from .bitmap_font import BitmapFont
+from ...core.timer import Timer
 
 
 class HUD:
-    """Heads-up display showing game state during gameplay.
+    """Displays the remaining time of a `Timer`.
 
     Attributes:
-        app: The parent GameApp instance.
-        font: The pygame font used for rendering text.
-        padding: Space between HUD elements.
+        font_title: BitmapFont for the "TIME" label.
+        font_value: BitmapFont for the numeric value.
+        timer: The Timer to display.
     """
 
-    def __init__(self, app: GameApp) -> None:
-        """Initialize the HUD.
+    MARGIN_PX = 10
+    LABEL_VALUE_GAP_PX = 8
 
-        Args:
-            app: The parent GameApp instance.
-        """
-        self.app = app
-        self.font = pygame.font.Font(None, 24)
-        self.padding = 10
-
-    def draw(
+    def __init__(
         self,
-        screen: pygame.Surface,
-        score: int,
-        lives: int,
-        level: int,
-        time_remaining: float,
+        font_title: BitmapFont,
+        font_value: BitmapFont,
+        timer: Timer,
     ) -> None:
-        """Draw the HUD on the screen.
+        """Initialize the HUD..
 
         Args:
-            screen: The pygame surface to draw on.
-            score: Current player score.
-            lives: Remaining lives.
-            level: Current level number.
-            time_remaining: Remaining time in seconds.
+            font_title: Font for the label.
+            font_value: Font for the numerical value.
+            timer: The Timer to display. The HUD does not modify it.
         """
-        # ----------------------------------------------------------------------
-        # Score (top-left)
-        # ----------------------------------------------------------------------
-        score_text = self.font.render(f"Score: {score}", True, (255, 255, 255))
-        screen.blit(score_text, (self.padding, self.padding))
+        self.font_title = font_title
+        self.font_value = font_value
+        self.timer = timer
 
-        # ----------------------------------------------------------------------
-        # Lives (top-right)
-        # ----------------------------------------------------------------------
-        lives_text = self.font.render(f"Lives: {lives}", True, (255, 255, 255))
-        lives_rect = lives_text.get_rect(
-            topright=(screen.get_width() - self.padding, self.padding)
-        )
-        screen.blit(lives_text, lives_rect)
+    # ==================================================================
+    #   Rendering
+    # ==================================================================
+    def draw(self, screen: Surface) -> None:
+        """Draw 'TIME M:SS' centered at the top of the screen."""
+        label = self.font_title.render("TIME")
+        value = self.font_value.render(self._format_remaining())
 
-        # ----------------------------------------------------------------------
-        # Level (bottom-left)
-        # ----------------------------------------------------------------------
-        level_text = self.font.render(f"Level: {level}", True, (255, 255, 255))
-        level_rect = level_text.get_rect(
-            bottomleft=(self.padding, screen.get_height() - self.padding)
-        )
-        screen.blit(level_text, level_rect)
+        gap = self.LABEL_VALUE_GAP_PX
+        total_w = label.get_width() + gap + value.get_width()
+        total_h = max(label.get_height(), value.get_height())
 
-        # ----------------------------------------------------------------------
-        # Time remaining (bottom-right)
-        # ----------------------------------------------------------------------
-        time_text = self.font.render(
-            f"Time: {int(time_remaining)}s",
-            True,
-            (255, 255, 255),
+        x0 = (screen.get_width() - total_w) // 2
+        y0 = self.MARGIN_PX
+
+        screen.blit(
+            label,
+            (
+                x0,
+                y0 + (total_h - label.get_height()) // 2
+            ),
         )
-        time_rect = time_text.get_rect(
-            bottomright=(
-                screen.get_width() - self.padding,
-                screen.get_height() - self.padding,
-            )
+        screen.blit(
+            value,
+            (
+                x0 + label.get_width() + gap,
+                y0 + (total_h - value.get_height()) // 2,
+            ),
         )
-        screen.blit(time_text, time_rect)
+
+    # ==================================================================
+    #   Interni
+    # ==================================================================
+    def _format_remaining(self) -> str:
+        """Use the Format the remaining time as M:SS."""
+        total = int(self.timer.remaining)
+        minutes, seconds = divmod(total, 60)
+        return f"{minutes}:{seconds:02d}"

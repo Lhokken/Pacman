@@ -9,7 +9,7 @@ import pygame
 
 @dataclass
 class PanelRect:
-    """Stores the rectangle for a side panel."""
+    """Fa TODO: Docstring."""
 
     x: int
     y: int
@@ -17,8 +17,50 @@ class PanelRect:
     height: int
 
     def to_pygame_rect(self) -> pygame.Rect:
-        """Convert to pygame.Rect."""
+        """Fa TODO: Docstring."""
         return pygame.Rect(self.x, self.y, self.width, self.height)
+
+    def split_horizontal(
+        self, ratio: float = 0.5
+    ) -> tuple["PanelRect", "PanelRect"]:
+        """Dividi in alto (ratio) e basso (1-ratio)."""
+        top_h = int(self.height * ratio)
+        top = PanelRect(self.x, self.y, self.width, top_h)
+        bottom = PanelRect(
+            self.x, self.y + top_h, self.width, self.height - top_h
+        )
+        return top, bottom
+
+    def split_vertical(
+        self, ratio: float = 0.5
+    ) -> tuple["PanelRect", "PanelRect"]:
+        """Dividi in sinistra (ratio) e destra (1-ratio)."""
+        left_w = int(self.width * ratio)
+        left = PanelRect(self.x, self.y, left_w, self.height)
+        right = PanelRect(
+            self.x + left_w, self.y, self.width - left_w, self.height
+        )
+        return left, right
+
+    def split_bottom(
+        self, ratio: float
+    ) -> tuple["PanelRect", "PanelRect"]:
+        """Dividi in top (1-ratio) e bottom (ratio).
+
+        Il bottom ha altezza `ratio * height` ed è ancorato al fondo
+        del rect. Utile per pannelli "fissati in basso" (vite, logo).
+        """
+        bottom_h = int(self.height * ratio)
+        top = PanelRect(
+            self.x, self.y, self.width, self.height - bottom_h
+        )
+        bottom = PanelRect(
+            self.x,
+            self.y + self.height - bottom_h,
+            self.width,
+            bottom_h,
+        )
+        return top, bottom
 
 
 class GameLayout:
@@ -61,6 +103,7 @@ class GameLayout:
         side_panel_ratio: float = 0.2,
         top_padding: int = 20,
         bottom_padding: int = 20,
+        min_maze_margin: int = 8,
     ) -> None:
         """Initialize layout parameters and compute rectangles.
 
@@ -73,6 +116,7 @@ class GameLayout:
             side_panel_ratio: Fraction of screen width for each side panel.
             top_padding: Vertical padding (in pixels) above the maze.
             bottom_padding: Vertical padding (in pixels) below the maze.
+            min_maze_margin: Minimum margin (in pixels) around the maze.
         """
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -82,6 +126,7 @@ class GameLayout:
         self.side_panel_ratio = side_panel_ratio
         self.top_padding = top_padding
         self.bottom_padding = bottom_padding
+        self.min_maze_margin = min_maze_margin
         self.left_panel: PanelRect = PanelRect(0, 0, 0, 0)
         self.right_panel: PanelRect = PanelRect(0, 0, 0, 0)
         self.center_panel: PanelRect = PanelRect(0, 0, 0, 0)
@@ -91,39 +136,26 @@ class GameLayout:
         self.compute()
 
     def compute(self) -> None:
-        """Compute the panel rectangles, maze rect, and tile size."""
+        """Compute the panel rectangles, maze rect, and tile size.
+
+        Ordine:
+          1. Dimensioni colonne (left / center / right).
+          2. Tile size: min tra vincolo orizzontale e verticale.
+          3. Clamp per garantire `min_maze_margin` attorno al maze.
+          4. maze_rect (centrato nell'area).
+          5. Pannelli laterali allineati al top del maze.
+        """
         side_width = int(self.screen_width * self.side_panel_ratio)
-        # ----------------------------------------------------------------
-        # Left panel
-        # ----------------------------------------------------------------
-        self.left_panel = PanelRect(0, 0, side_width, self.screen_height)
-
-        # ----------------------------------------------------------------
-        # Right panel
-        # ----------------------------------------------------------------
-        self.right_panel = PanelRect(
-            self.screen_width - side_width,
-            0,
-            side_width,
-            self.screen_height,
-        )
-
-        # ----------------------------------------------------------------
-        # Center panel (between side panels)
-        # ----------------------------------------------------------------
         center_x = side_width
         center_width = self.screen_width - 2 * side_width
-        self.center_panel = PanelRect(
-            center_x, 0, center_width, self.screen_height
-        )
 
-        # ----------------------------------------------------------------
-        # Available area for maze inside center panel, with padding
-        # ----------------------------------------------------------------
+        # --- 1. Area disponibile (con padding) ---
         avail_width = center_width
         avail_height = (
             self.screen_height - self.top_padding - self.bottom_padding
         )
+
+        # --- 2. Tile size base ---
         if self.maze_width > 0 and self.maze_height > 0:
             self.tile_size = min(
                 avail_width // self.maze_width,
@@ -132,24 +164,50 @@ class GameLayout:
         else:
             self.tile_size = 0
 
+        # --- 3. Clamp: margine minimo attorno al maze ---
+        margin = self.min_maze_margin
+        if self.maze_height > 0 and avail_height > 2 * margin:
+            max_by_v = (avail_height - 2 * margin) // self.maze_height
+            self.tile_size = min(self.tile_size, max_by_v)
+        if self.maze_width > 0 and avail_width > 2 * margin:
+            max_by_h = (avail_width - 2 * margin) // self.maze_width
+            self.tile_size = min(self.tile_size, max_by_h)
+
+        # --- 4. too_small + floor ---
         if self.tile_size < self.min_tile_size:
             self.too_small = True
             self.tile_size = self.min_tile_size
         else:
             self.too_small = False
-        # ----------------------------------------------------------------
-        # Maze rectangle (centered within the padded area)
-        # ----------------------------------------------------------------
+
+        # --- 5. maze_rect (centrato nell'area disponibile) ---
         maze_pixel_width = self.maze_width * self.tile_size
         maze_pixel_height = self.maze_height * self.tile_size
-        maze_x = (
-            center_x + (center_width - maze_pixel_width) // 2
-        )
+        maze_x = center_x + (center_width - maze_pixel_width) // 2
         maze_y = (
             self.top_padding + (avail_height - maze_pixel_height) // 2
         )
         self.maze_rect = pygame.Rect(
             maze_x, maze_y, maze_pixel_width, maze_pixel_height
+        )
+
+        # --- 6. Pannelli allineati al top del maze ---
+        # Alto e altezza dei pannelli = alto e altezza del maze.
+        # Così score/lives/highscore/logo partono dalla stessa Y del
+        # labirinto e finiscono insieme.
+        panel_top = self.maze_rect.y
+        panel_height = self.maze_rect.height
+        self.left_panel = PanelRect(
+            0, panel_top, side_width, panel_height
+        )
+        self.right_panel = PanelRect(
+            self.screen_width - side_width,
+            panel_top,
+            side_width,
+            panel_height,
+        )
+        self.center_panel = PanelRect(
+            center_x, panel_top, center_width, panel_height
         )
 
     def get_maze_origin(self) -> tuple[int, int]:

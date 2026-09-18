@@ -15,6 +15,7 @@ and to carry out the necessary checks before eating a pacgum.
 
 from typing import Callable
 import logging
+from src.core.entities.ghost import GhostBase
 
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.INFO)
@@ -57,9 +58,10 @@ class PacgumsManagement:
 
     def try_to_eat(
         self,
+        ghosts: list[GhostBase],
         unit_x: int,
         unit_y: int,
-        ghost_positions: list[tuple[int, int]],
+        # ghost_positions: list[tuple[int, int]],
     ) -> int:
         """Try to eat a pacgum in the indicated cell.
 
@@ -76,7 +78,14 @@ class PacgumsManagement:
         Returns:
             Score earned (10 if eaten, 0 otherwise).
         """
+        ghost_positions = [
+            (ghosts[0].grid_x, ghosts[0].grid_y),
+            (ghosts[1].grid_x, ghosts[1].grid_y),
+            (ghosts[2].grid_x, ghosts[2].grid_y),
+            (ghosts[3].grid_x, ghosts[3].grid_y)
+        ]
         # Check if the cell is within the maze limits --------------
+        self.eaten
         if not (
             0 <= unit_x < self.maze_width
             and 0 <= unit_y < self.maze_height
@@ -118,6 +127,12 @@ class PacgumsManagement:
 
         # If all checks passed, mark the pacgum as eaten ------------------
         self.eaten.add((unit_x, unit_y))
+        if (unit_x, unit_y) in [
+                (0, 0),
+                (self.maze_width - 1, 0),
+                (0, self.maze_height - 1),
+                (self.maze_width - 1, self.maze_height - 1)]:
+            GhostBase.frighten_ghosts(ghosts)
         logger.debug(
             "Pacgum eaten at (%d, %d). Score increased: %d",
             unit_x,

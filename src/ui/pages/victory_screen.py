@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pygame
+from pygame.surface import Surface
 
 from ..scene import Scene
 from ..components.button import Button
@@ -86,7 +87,7 @@ class VictoryPage(Scene):
                 elif event.key == pygame.K_ESCAPE:
                     self._go_back()
 
-    def draw(self, screen: pygame.Surface) -> None:
+    def draw(self, screen: Surface) -> None:
         """Render the victory screen."""
         screen.fill((0, 0, 0))
 

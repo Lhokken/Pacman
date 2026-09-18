@@ -1,14 +1,20 @@
 
-"""Cheat page for enabling/disabling debug features."""
+"""Cheat page for enabling/disabling debug features.
+
+TODO: Quando siamo da game_page se entriamo a setting quando usciamo
+      ritorniamo a pause menu e le modifiche sono effettive. i cheat
+      devono essere attivi
+"""
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import pygame
-
+from pygame.surface import Surface
+from src.core.entities.pacman import PacmanPlayer
 from ..scene import Scene
 from ..components.button import Button
 from ..managers.font_manager import FontManager
@@ -23,6 +29,7 @@ class CheatPage(Scene):
     """Scene for toggling cheat options (for peer review)."""
 
     def __init__(self, app: GameApp) -> None:
+        """Fa TODO: docstring."""
         super().__init__(app)
 
         file_path = Path(__file__).resolve()
@@ -79,7 +86,7 @@ class CheatPage(Scene):
 
             # Use a closure to capture attr_name and avoid type
             # inference issues
-            def make_toggle_callback(attr: str):
+            def make_toggle_callback(attr: str) -> Callable:
                 def callback() -> None:
                     self._toggle(attr)
                 return callback
@@ -120,6 +127,7 @@ class CheatPage(Scene):
             state = getattr(self, attr_name)
             on_off = "ON" if state else "OFF"
             self.buttons[i].set_text(f"{label}: {on_off}")
+            PacmanPlayer.cheat_sync({attr_name: on_off})
 
     def _go_back(self) -> None:
         from .main_menu import MainMenu
@@ -143,6 +151,7 @@ class CheatPage(Scene):
     #   Public methods for scene interface
     # =======================================================================
     def handle_events(self) -> None:
+        """Fa TODO: docstring."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.app.running = False
@@ -160,7 +169,8 @@ class CheatPage(Scene):
                 elif event.key == pygame.K_ESCAPE:
                     self._go_back()
 
-    def draw(self, screen: pygame.Surface) -> None:
+    def draw(self, screen: Surface) -> None:
+        """Fa TODO: docstring."""
         screen.fill((0, 0, 0))
         # ---------------------------------------------------------------------
         # Title
