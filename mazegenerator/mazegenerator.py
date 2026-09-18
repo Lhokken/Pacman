@@ -144,7 +144,7 @@ class MazeGenerator:
         # mazes never hit Python's recursion limit. Each frame keeps its own
         # neighbour generator, which preserves the original lazy evaluation
         # order (and its random side effects) exactly as the recursive version.
-        def _enter(cx, cy, fcode):
+        def _enter(cx: int, cy: int, fcode: int) -> list:
             self._path[cy][cx] = 1
             non_mutable = self._maze[cy][cx]
             self._maze[cy][cx] = 15 & ~fcode
@@ -165,7 +165,7 @@ class MazeGenerator:
                 stack.pop()
 
     def _find_short_path(self) -> None:
-        # BFS: shortest entry->exit path in O(cells). Robust on looped (braided)
+        # BFS: shortest entry->exit path in O(cells) Robust on looped (braided)
         # mazes, where the previous depth-first search exploded exponentially.
         moves = [(0, -1, 1, 'N'), (1, 0, 2, 'E'),
                  (0, 1, 4, 'S'), (-1, 0, 8, 'W')]   # dx, dy, wall code, letter

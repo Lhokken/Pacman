@@ -12,6 +12,7 @@ import sys
 from .cli_args_parser import ArgumentParser
 from .cli_validator_input import CLIValidator
 from ..core.parsing.parsey import ConfigLoader, GameConfig
+from ..core.entities.pacman import PacmanPlayer
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,7 @@ class CLIApplication:
         sys.stdout.write(
             f"  Seed: {config.seed}\n"
         )
+        PacmanPlayer.init_data_set(config.lives)
         sys.stdout.write(
             f"  Levels: {len(config.levels)}\n"
         )

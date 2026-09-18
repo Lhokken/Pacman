@@ -32,10 +32,10 @@ def blit_centered(
     screen.blit(img, img.get_rect(center=(int(x), int(y))))
 
 
-def render_text(font, text: str) -> Surface:
-    """Renderizza `text` con `font`. Wrapper di `font.render(text)`.
+# def render_text(font, text: str) -> Surface:
+#     """Renderizza `text` con `font`. Wrapper di `font.render(text)`.
 
-    Esiste per uniformare i call-site e per avere un unico punto in
-    cui aggiungere opzioni (antialias, colore di sfondo) se servirà.
-    """
-    return font.render(text)
+#     Esiste per uniformare i call-site e per avere un unico punto in
+#     cui aggiungere opzioni (antialias, colore di sfondo) se servirà.
+#     """
+#     return font.render(text)

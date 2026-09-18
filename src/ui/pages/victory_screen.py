@@ -89,7 +89,7 @@ class VictoryPage(Scene):
 
     def draw(self, screen: Surface) -> None:
         """Render the victory screen."""
-        screen.fill((0, 0, 0))
+        screen.fill((20, 20, 30))
 
         # Title
         title_surface = self.font_title.render("You Win!")

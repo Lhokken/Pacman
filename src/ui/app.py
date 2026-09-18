@@ -62,8 +62,9 @@ class GameApp:
 
         # --- Display ---
         try:
-            desktop_size = pygame.display.get_desktop_sizes()[0]
-            desktop_width, desktop_height = desktop_size
+            desktop_info = pygame.display.Info()
+            desktop_width = desktop_info.current_w
+            desktop_height = desktop_info.current_h
         except (IndexError, pygame.error) as e:
             logger.warning(
                 "Could not get desktop size, fallback 1200x800: %s", e
@@ -115,8 +116,9 @@ class GameApp:
             )
         else:
             try:
-                desktop_size = pygame.display.get_desktop_sizes()[0]
-                desktop_width, desktop_height = desktop_size
+                desktop_info = pygame.display.Info()
+                desktop_width = desktop_info.current_w
+                desktop_height = desktop_info.current_h
             except (IndexError, pygame.error):
                 desktop_width, desktop_height = 1200, 800
             self.screen = pygame.display.set_mode(

@@ -7,7 +7,7 @@ of time progression.
 """
 
 from __future__ import annotations
-
+from random import randint
 import logging
 import pygame
 from src.core.entities.ghost import GhostBase, GhostState
@@ -68,7 +68,7 @@ class PacmanPlayer:
 
     CHEAT_DATA: dict[str, bool] = {
         "invincible": False,
-        "level_skip": False,
+        "data_debug": False,
         "ghost_freeze": False,
         "extra_lives": False,
         "increased_speed": False
@@ -89,7 +89,14 @@ class PacmanPlayer:
         self.from_y = state_y
         self.to_x = state_x
         self.to_y = state_y
+        self.debug = False
         self.lives = self.INIT_DATA["Lives"]
+        if self.CHEAT_DATA["extra_lives"] is True:
+            self.lives += 2
+        if self.CHEAT_DATA["increased_speed"] is True:
+            self.MOVE_DURATION_MS = 120
+        if self.CHEAT_DATA["data_debug"] is True:
+            self.debug = True
         self.queued_direction: str | None = None
         self.is_moving = False
         self.move_started_ms = 0
@@ -111,7 +118,6 @@ class PacmanPlayer:
                 cls.CHEAT_DATA[key] = False
             elif value == "ON":
                 cls.CHEAT_DATA[key] = True
-            print(f"{key}: {cls.CHEAT_DATA[key]}")
 
     @classmethod
     def init_data_set(cls, lives: int) -> None:
@@ -195,21 +201,27 @@ class PacmanPlayer:
         score_gain = 0
         player_position: tuple[int, int]
         if self.is_moving:
-
             elapsed_time = (
                 pygame.time.get_ticks() - self.move_started_ms
             )
-
             if elapsed_time >= self.MOVE_DURATION_MS:
                 player_position = (self.grid_y, self.grid_x)
-                self.ghosts_positions = GhostBase.team_ghost(
-                    ghosts,
-                    player_position,
-                    self.maze,
-                    self.maze_height,
-                    self.maze_width,
-                    rand=20
-                    )
+                if self.debug is True:
+                    print(
+                        f"Pacman pos: {player_position} lives: {self.lives}"
+                        )
+                if self.CHEAT_DATA["ghost_freeze"] is False:
+                    GhostBase.team_ghost(
+                        ghosts,
+                        player_position,
+                        self.maze,
+                        self.maze_height,
+                        self.maze_width,
+                        rand=4,
+                        debug=self.debug
+                        )
+                    self.ghosts_positions = [
+                        (g.grid_y, g.grid_x) for g in ghosts]
                 self.is_moving = False
                 self.move_started_ms = 0
                 score_gain = pacgums.try_to_eat(
@@ -217,17 +229,16 @@ class PacmanPlayer:
                     unit_x=self.grid_x,
                     unit_y=self.grid_y,
                 )
-                print("Pacman", player_position, self.lives)
-                print(self.CHEAT_DATA)
                 for ghost in ghosts:
-                    if (ghost.grid_y, ghost.grid_x) == \
-                            (self.grid_y, self.grid_x):
+                    if (ghost.grid_y, ghost.grid_x) in \
+                            [(self.grid_y, self.grid_x),
+                             (self.from_y, self.from_x)]:
                         if ghost.state == GhostState.FRIGHTENED:
-                            # print(ghost.state)
                             ghost.state = GhostState.EATEN
                         elif ghost.state == GhostState.EATEN:
                             pass
-                        elif ghost.state == GhostState.NORMAL:
+                        elif ghost.state == GhostState.NORMAL and \
+                                self.CHEAT_DATA["invincible"] is False:
                             self.life_loss()
                 if score_gain > 0 and \
                     player_position in [
@@ -237,7 +248,6 @@ class PacmanPlayer:
                         (self.maze_width - 1, self.maze_height - 1)]:
                     for ghost in ghosts:
                         ghost.state = GhostState.FRIGHTENED
-                        # print(ghost.state)
                 self._try_start_move()
         else:
             self._try_start_move()
@@ -288,9 +298,22 @@ class PacmanPlayer:
             return True
         return (self.maze[y][x] & wall_bit) != 0
 
+    def pacman_respawn(self) -> None:
+        list_respawn: list[tuple[int, int]] = []
+        for row in range(0, len(self.maze)):
+            for col in range(0, len(self.maze[0])):
+                flag: bool = True
+                for g in self.ghosts_positions:
+                    if GhostBase.get_distance((row, col), g) < 4:
+                        flag = False
+                if flag is True and self.maze[col][row] != 15:
+                    list_respawn.append((row, col))
+        self.respawn = list_respawn[randint(0, len(list_respawn))]
+
     def life_loss(self) -> None:
         """NOTE: life loss manager
         TODO: connect with game over page"""
+        self.pacman_respawn()
         self.lives -= 1
         self.grid_x = self.respawn[0]
         self.grid_y = self.respawn[1]

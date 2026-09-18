@@ -25,6 +25,7 @@ class PauseBlock:
         title_center_y: Y (px) del centro del titolo.
         button_rects:   tupla di pygame.Rect, uno per bottone.
     """
+
     title_center_y: int
     button_rects: tuple[pygame.Rect, ...]
 
@@ -45,7 +46,7 @@ class PauseLayout:
     BUTTON_SPACE_RATIO: float = 0.09     # distance between the centers of btn.
 
     def __init__(self, **overrides: float) -> None:
-        """Creates the layout, optionally overriding some ratios.
+        """Create the layout, optionally overriding some ratios.
 
         Raises:
             AttributeError: if a key is not a known ratio.

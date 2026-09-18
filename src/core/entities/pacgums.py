@@ -133,6 +133,8 @@ class PacgumsManagement:
                 (0, self.maze_height - 1),
                 (self.maze_width - 1, self.maze_height - 1)]:
             GhostBase.frighten_ghosts(ghosts)
+        if len(self.eaten) == (self.maze_width * self.maze_height) - 18:
+            print("Next level")
         logger.debug(
             "Pacgum eaten at (%d, %d). Score increased: %d",
             unit_x,

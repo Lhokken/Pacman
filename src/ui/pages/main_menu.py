@@ -150,17 +150,13 @@ class MainMenu(Scene):
         self.app.switch_scene(GamePage(self.app))
 
     def _show_highscores(self) -> None:
-        logger.info(
-            "Highscores requested (not yet implemented)"
-        )
+        from .hight_score import HightScorePage
+        self.app.switch_scene(HightScorePage(self.app))
 
     def _show_instructions(self) -> None:
         """Show the game instructions page."""
-        # from .instruction_page import InstructionPage
-        # self.app.switch_scene(InstructionPage(self.app))
-        logger.info(
-            "InstructionPage requested (not yet implemented)"
-        )
+        from .Instruction_page import InstructionPage
+        self.app.switch_scene(InstructionPage(self.app))
 
     def _show_impostazioni(self) -> None:
         """Show the page with the game's cheating settings."""

@@ -46,7 +46,7 @@ class CheatPage(Scene):
         #   PLACEHOLDER - Cheat state (persona B collega la logica reale)
         # ====================================================================
         self.invincible = False
-        self.level_skip = False
+        self.data_debug = False
         self.ghost_freeze = False
         self.extra_lives = False
         self.increased_speed = False
@@ -66,7 +66,8 @@ class CheatPage(Scene):
                 "invincible"
             ),
             (
-                "Level Skip", "level_skip"
+                "Data Debug",
+                "data_debug"
             ),
             (
                 "Ghost Freeze",
@@ -130,8 +131,13 @@ class CheatPage(Scene):
             PacmanPlayer.cheat_sync({attr_name: on_off})
 
     def _go_back(self) -> None:
-        from .main_menu import MainMenu
-        self.app.switch_scene(MainMenu(self.app))
+        # TODO: IMPOSTARE CONCENTTUALMENTE LA SEGUENTE LOGICA:
+        #       se siamo su main menu torna a main menui
+        #       se siamo su pause menu torna su pause menu
+        # NOTE: mantieni in memoria il timer tra il percorso
+        #        menu pausa -> impostazioni -> game page
+        from .game_page import GamePage
+        self.app.switch_scene(GamePage(self.app))
 
     def _layout_buttons(self, screen_width: int, screen_height: int) -> None:
         """Position buttons vertically centered."""
@@ -171,7 +177,7 @@ class CheatPage(Scene):
 
     def draw(self, screen: Surface) -> None:
         """Fa TODO: docstring."""
-        screen.fill((0, 0, 0))
+        screen.fill((20, 20, 30))
         # ---------------------------------------------------------------------
         # Title
         # ---------------------------------------------------------------------

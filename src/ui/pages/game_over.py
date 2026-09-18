@@ -120,7 +120,7 @@ class GameOverPage(Scene):
         The screen is filled with a black background before rendering the
         text and button.
         """
-        screen.fill((0, 0, 0))
+        screen.fill((20, 20, 30))
         # ------------------------------------------------------------------
         #   Title
         # -----------------------------------------------------------------
