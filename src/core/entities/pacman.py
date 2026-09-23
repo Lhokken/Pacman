@@ -196,7 +196,7 @@ class PacmanPlayer:
     #   MOVIMENTO PLAYER
     # ======================================================================
     def update(self, ghosts: list[GhostBase],
-               pacgums: PacgumsManagement) -> int:
+               pacgums: PacgumsManagement, pacman: PacmanPlayer) -> int:
         """Advance movement and eat a pacgum when a move is complete."""
         score_gain = 0
         player_position: tuple[int, int]
@@ -304,11 +304,11 @@ class PacmanPlayer:
             for col in range(0, len(self.maze[0])):
                 flag: bool = True
                 for g in self.ghosts_positions:
-                    if GhostBase.get_distance((row, col), g) < 4:
+                    if GhostBase.get_distance((row, col), g) < 5:
                         flag = False
                 if flag is True and self.maze[col][row] != 15:
                     list_respawn.append((row, col))
-        self.respawn = list_respawn[randint(0, len(list_respawn))]
+        self.respawn = list_respawn[randint(0, (len(list_respawn) - 1))]
 
     def life_loss(self) -> None:
         """NOTE: life loss manager

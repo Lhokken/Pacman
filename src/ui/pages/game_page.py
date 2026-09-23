@@ -156,8 +156,9 @@ class GamePage(Scene):
     def update(self) -> None:
         """Sincronizza i ghost sulle posizioni calcolate dal core."""
         self._sync_ghosts_from_player()
+        
         score_gain = self.player.update(
-            self.ghosts, self.pacgums
+            self.ghosts, self.pacgums, self.player
         )
         if score_gain:
             self.score += score_gain
@@ -217,11 +218,13 @@ class GamePage(Scene):
 
         # 6) Pacgum, super-pacgum, player -----------------------------
         ghost_positions = [(g.grid_x, g.grid_y) for g in self.ghosts]
+        
         self.entity_renderer.draw(
             screen, ox, oy, self.tile_size,
             player_center, ghost_positions,
             self.maze, self.pacgums.eaten,
             self.player.is_moving, player_progress,
+            self.player.direction
         )
 
     # ==================================================================

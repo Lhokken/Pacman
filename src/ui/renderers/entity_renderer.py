@@ -45,6 +45,7 @@ class EntityRenderer:
         eaten_pacgums: set[tuple[int, int]] | None = None,
         player_moving: bool = False,
         player_move_progress: float = 0.0,
+        direction: str | None = ""
     ) -> None:
         """Draw player, pacgums, and super-pacgums.
 
@@ -75,7 +76,7 @@ class EntityRenderer:
         )
         self._draw_player(
             screen, player_pixel_center,
-            player_moving, player_move_progress,
+            player_moving, player_move_progress, direction
         )
 
     # -------------------------------------------------------------------------
@@ -134,6 +135,7 @@ class EntityRenderer:
         player_pixel_center: tuple[float, float],
         player_moving: bool,
         player_move_progress: float,
+        direction: str | None
     ) -> None:
         """Disegna il player scegliendo il frame in base allo stato."""
         frames = self.assets.player_frames
@@ -149,7 +151,14 @@ class EntityRenderer:
 
         if player_img is None:
             return
-
+        if direction == "up":
+            player_img = transform.rotate(player_img, 90)
+        if direction == "down":
+            player_img = transform.rotate(player_img, -90)
+        if direction == "left":
+            player_img = transform.rotate(player_img, 180)
+        if direction == "right":
+            pass
         self._draw_centered(
             screen, player_img,
             int(round(player_pixel_center[0])),
