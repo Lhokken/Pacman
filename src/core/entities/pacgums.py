@@ -51,6 +51,7 @@ class PacgumsManagement:
         self.maze_width = maze_width
         self.maze_height = maze_height
         self.walkable_fn = walkable_fn
+        self.next_level: bool = False
 
         # ==============================================================
         # Public methods
@@ -133,8 +134,8 @@ class PacgumsManagement:
                 (0, self.maze_height - 1),
                 (self.maze_width - 1, self.maze_height - 1)]:
             GhostBase.frighten_ghosts(ghosts)
-        if len(self.eaten) == (self.maze_width * self.maze_height) - 18:
-            print("Next level")
+        if len(self.eaten) == (self.maze_width * self.maze_height) - 410: # 18
+            self.next_level = True
         logger.debug(
             "Pacgum eaten at (%d, %d). Score increased: %d",
             unit_x,

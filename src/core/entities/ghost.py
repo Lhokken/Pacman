@@ -70,13 +70,13 @@ class GhostBase:
         self.state = GhostState.NORMAL     # Default behavioral state
         self.corner = (start_y, start_x)   # Corner cell for respawn
         self.ghosts: list[GhostBase]       # tuple[int, int] | bool = (0, 0)
-        self.set_timer: int = 30
+        self.set_timer: int = 60
         self.timer: int = self.set_timer
 
     @classmethod  # nord ovest
     def blinky(
             cls,
-            ghost: GhostBase,
+            ghosts: list[GhostBase],
             player_pos: tuple[int, int],
             maze: list[list[int]],
             height: int,
@@ -85,7 +85,10 @@ class GhostBase:
             debug: bool
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
-        ghost.name = "Blinky"
+        ghost=ghosts[0]
+        gh_places = cls.ghost_check(ghosts[1], ghosts[2], ghosts[3])
+        if not hasattr(ghost, "name"):
+            ghost.name = "Blinky"
         if debug is True:
             cls.debug_ghost(ghost)
         row, col = (ghost.grid_y, ghost.grid_x)
@@ -98,14 +101,16 @@ class GhostBase:
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
             row, col = cls.eaten_mod(ghost, maze, row, col)
-        cls.get_direction(ghost, row, col)
+        while (row, col) in gh_places:
+            (row, col) = cls.next_step(row, col, maze, width, height)
         ghost.grid_y = row
         ghost.grid_x = col
+        cls.get_direction(ghost, row, col)
 
     @classmethod  # nord est
     def clyde(
             cls,
-            ghost: GhostBase,
+            ghosts: list[GhostBase],
             player_pos: tuple[int, int],
             maze: list[list[int]],
             height: int,
@@ -114,7 +119,10 @@ class GhostBase:
             debug: bool
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
-        ghost.name = "Clyde"
+        ghost=ghosts[1]
+        gh_places = cls.ghost_check(ghosts[0], ghosts[2], ghosts[3])
+        if not hasattr(ghost, "name"):
+            ghost.name = "Clyde"
         if debug is True:
             cls.debug_ghost(ghost)
         row, col = (ghost.grid_y, ghost.grid_x)
@@ -127,14 +135,16 @@ class GhostBase:
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
             row, col = cls.eaten_mod(ghost, maze, row, col)
-        cls.get_direction(ghost, row, col)
+        while (row, col) in gh_places:
+            (row, col) = cls.next_step(row, col, maze, width, height)
         ghost.grid_y = row
         ghost.grid_x = col
+        cls.get_direction(ghost, row, col)
 
     @classmethod  # sud ovest
     def inky(
             cls,
-            ghost: GhostBase,
+            ghosts: list[GhostBase],
             player_pos: tuple[int, int],
             maze: list[list[int]],
             height: int,
@@ -143,7 +153,10 @@ class GhostBase:
             debug: bool
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
-        ghost.name = "Inky"
+        ghost=ghosts[2]
+        gh_places = cls.ghost_check(ghosts[0], ghosts[1], ghosts[3])
+        if not hasattr(ghost, "name"):
+            ghost.name = "Inky"
         if debug is True:
             cls.debug_ghost(ghost)
         row, col = (ghost.grid_y, ghost.grid_x)
@@ -156,14 +169,16 @@ class GhostBase:
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
             row, col = cls.eaten_mod(ghost, maze, row, col)
-        cls.get_direction(ghost, row, col)
+        while (row, col) in gh_places:
+            (row, col) = cls.next_step(row, col, maze, width, height)
         ghost.grid_y = row
         ghost.grid_x = col
+        cls.get_direction(ghost, row, col)
 
     @classmethod  # sud est
     def pinky(
             cls,
-            ghost: GhostBase,
+            ghosts: list[GhostBase],
             player_pos: tuple[int, int],
             maze: list[list[int]],
             height: int,
@@ -172,7 +187,10 @@ class GhostBase:
             debug: bool
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
-        ghost.name = "Pinky"
+        ghost=ghosts[3]
+        gh_places = cls.ghost_check(ghosts[0], ghosts[1], ghosts[2])
+        if not hasattr(ghost, "name"):
+            ghost.name = "Pinky"
         if debug is True:
             cls.debug_ghost(ghost)
         row, col = (ghost.grid_y, ghost.grid_x)
@@ -185,9 +203,27 @@ class GhostBase:
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
             row, col = cls.eaten_mod(ghost, maze, row, col)
+        while (row, col) in gh_places:
+            (row, col) = cls.next_step(row, col, maze, width, height)
         ghost.grid_y = row
         ghost.grid_x = col
         cls.get_direction(ghost, row, col)
+
+    @classmethod
+    def ghost_check(
+        cls,
+        ghost1: GhostBase,
+        ghost2: GhostBase,
+        ghost3: GhostBase) -> tuple[
+            tuple[int, int],
+            tuple[int, int],
+            tuple[int, int]
+            ]:
+        return (
+            (ghost1.grid_y, ghost1.grid_x),
+            (ghost2.grid_y, ghost2.grid_x),
+            (ghost3.grid_y, ghost3.grid_x)
+        )                  
 
     @classmethod
     def debug_ghost(cls, ghost: GhostBase) -> None:
@@ -229,10 +265,10 @@ class GhostBase:
             debug: bool
             ) -> None:
         """This method call each ghost"""
-        cls.blinky(ghosts[0], player_pos, maze, height, width, rand, debug)
-        cls.clyde(ghosts[1], player_pos, maze, height, width, rand, debug)
-        cls.inky(ghosts[2], player_pos, maze, height, width, rand, debug)
-        cls.pinky(ghosts[3], player_pos, maze, height, width, rand, debug)
+        cls.blinky(ghosts, player_pos, maze, height, width, rand, debug)
+        cls.clyde(ghosts, player_pos, maze, height, width, rand, debug)
+        cls.inky(ghosts, player_pos, maze, height, width, rand, debug)
+        cls.pinky(ghosts, player_pos, maze, height, width, rand, debug)
 
     @classmethod
     def get_neighbours(

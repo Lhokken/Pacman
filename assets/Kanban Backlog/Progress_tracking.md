@@ -38,3 +38,13 @@
 | 2026-09-19 | *gcerrete* | ---- |
 | 2026-09-20 | *fedegugl* | Ultimo controllo della logica della UI e del flusso del player - UI Stato complete - logic pending |
 | 2026-09-20 | *gcerrete* | ---- |
+| 2026-09-22 | *fedegugl* | **UI Stato complete** - logic pending |
+| 2026-09-23 | *fedegugl* | **END - mypy flake8** file src/ui/configUI/ui_config.py e directory configUI - logic pending |
+| 2026-09-23 | *fedegugl* | **END - ciclo logica degli stati tra menu** Preparato lo spazio per la logica del cheatig state - logic pending |
+| 2026-09-23 | *gcerrete* | soluzione del pacman - player ora si gira correttamente. Risolto sovrapposizione dei ghost |
+| 2026-09-24 | *fedegugl* | **END - mypy flake8** file directory  src/ui/pages - logic pending |
+| 2026-09-24 | *fedegugl* | **END - UI screen end game** Grafica allineata e conforme file directory src/ui/pages/end_screen.py - logic pending |
+| 2026-09-24 | *fedegugl* | **CORE** Recuperata logica del flash del ghost - *UI RISOLTA* Lasciati commeni tecnici per *CORE* - logic pending|
+| 2026-09-25 | *fedegugl* | ~~**UI STATO CLOSED**  Allinemento finale della UI Con logica generale - logic pending~~ **RIUNIONE END WEEK** - Discussione su come procedere nei prossimi giorni. |
+| 2026-09-28 | *fedegugl* | **UI STATO CLOSED**  Allinemento finale della UI Con logica generale - logic pending | 
+| 2026-09-nn | *gcerrete* | **DECISIONE** pacman dovrebbe tornare al centro del labirinto secondo subject, al momento appare randomicamente lontano dai fantasmi - *REFERENCE* : Chapter VI, Game specifications. VI.2 Player page 12 |

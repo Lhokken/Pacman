@@ -163,8 +163,9 @@ class GameLayout:
             )
         else:
             self.tile_size = 0
-
-        # --- 3. Clamp: margine minimo attorno al maze ---
+        # -------------------------------------------------------------
+        #   3. Clamp: margine minimo attorno al maze
+        # -------------------------------------------------------------
         margin = self.min_maze_margin
         if self.maze_height > 0 and avail_height > 2 * margin:
             max_by_v = (avail_height - 2 * margin) // self.maze_height

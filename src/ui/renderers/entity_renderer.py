@@ -10,15 +10,19 @@ from ..managers.asset_manager import AssetManager
 
 
 class EntityRenderer:
-    """Draws Pac-Man, ghosts, and pacgums using loaded sprites.
+    """Draws Pac-Man, ghosts, and pacgums using loaded sprites."""
 
-    Nota: dopo la migrazione al nuovo `AssetManager.ghosts` /
-    `AssetManager.ghost_shared`, il rendering dei ghost è interamente
-    in `draw_ghosts()` + `_pick_ghost_frame()`. Il vecchio metodo
-    `draw()` è ora responsabile solo di super-pacgum, pacgum e player.
-    """
+    # ---------------------------------------------------------------
+    # NOTE: dopo la migrazione al nuovo
+    #  --------------------------------------------------------------
+    # `AssetManager.ghosts` / `AssetManager.ghost_shared`,
+    #  il rendering dei ghost è interamente in
+    # `draw_ghosts()` + `_pick_ghost_frame()`. Il vecchio metod0
+    # `draw()` è ora responsabile di superpacgum, pacgum e player.
 
-    # Durata di un frame dell'animazione idle dei ghost (ms).
+    # ---------------------------------------------------------------
+    #   Durata di un frame dell'animazione idle dei ghost (ms).
+    # ---------------------------------------------------------------
     GHOST_IDLE_FRAME_MS = 300
 
     def __init__(self, assets: AssetManager) -> None:
@@ -68,8 +72,11 @@ class EntityRenderer:
         """
         if eaten_pacgums is None:
             eaten_pacgums = set()
-
-        # self._draw_super_pacgums(screen, origin_x, origin_y, tile_size, maze)
+        # -----------------------------------------------
+        # self._draw_super_pacgums(
+        #     screen, origin_x, origin_y, tile_size, maze
+        # )
+        # ------------------------------------------------
         self._draw_pacgums(
             screen, origin_x, origin_y, tile_size, maze,
             ghost_positions, eaten_pacgums,
@@ -106,8 +113,9 @@ class EntityRenderer:
                     continue
                 if not self._is_walkable(x, y, maze):
                     continue
-
+                # -----------------------------------------------
                 # superpacgum drawing
+                # -----------------------------------------------
                 if (x, y) in [
                         (0, 0),
                         (len(maze) - 1, 0),
@@ -120,7 +128,9 @@ class EntityRenderer:
                         origin_x + x * tile_size + half,
                         origin_y + y * tile_size + half,
                     )
+                # -----------------------------------------------
                 # normal pacgum drawing
+                # -----------------------------------------------
                 else:
                     self._draw_centered(
                         screen, img,
@@ -128,7 +138,6 @@ class EntityRenderer:
                         origin_y + y * tile_size + half,
                     )
 
-    # -------------------------------------------------------------------------
     def _draw_player(
         self,
         screen: Surface,
@@ -140,15 +149,19 @@ class EntityRenderer:
         """Disegna il player scegliendo il frame in base allo stato."""
         frames = self.assets.player_frames
         player_img: Surface | None
+        # -----------------------------------------------------------------
+        #   GESTIONE PLAYER FLUIDO
+        # -----------------------------------------------------------------
         if player_moving and frames:
+            # -------------------------------------------------------------
             # Il progresso 0..1 scandisce i frame due volte più veloce.
+            # ------------------------------------------------------------
             idx = int(player_move_progress * len(frames) * 2) % len(frames)
             player_img = frames[idx]
         elif frames:
             player_img = frames[1] if len(frames) > 1 else frames[0]
         else:
             player_img = self.assets.player_img
-
         if player_img is None:
             return
         if direction == "up":
@@ -191,16 +204,26 @@ class EntityRenderer:
             frightened_flash: True negli ultimi istanti del power pellet:
                 usa i frame "fear_flash" invece di "fear".
         """
+        # NOTE: Dopo la protezione della key word only marker `*` noi abbiamo
+        # frightened_flash: bool = False. Il senso e che frightened_flash
+        # puoi passarlo come nome, e un oggetto invocabile e devi scriverlo.
+        # Questo avrebbe dovuto proteggere la chiamata...
+        # Cosa e successo nel refactoring? E stato tolto qualcosa dato che
+        # nella versione precedente funzionava.
+
         half = tile_size // 2
         for info in ghost_infos:
             img = self._pick_ghost_frame(info, frightened_flash)
             if img is None:
                 continue
-            cx = int(origin_x + info["x"] * tile_size + half)
-            cy = int(origin_y + info["y"] * tile_size + half)
+            cx = (
+                int(origin_x + info["x"] * tile_size + half)
+            )
+            cy = (
+                int(origin_y + info["y"] * tile_size + half)
+            )
             self._draw_centered(screen, img, cx, cy)
 
-    # ------------------------------------------------------------------
     def _pick_ghost_frame(
         self,
         info: dict,
@@ -209,9 +232,10 @@ class EntityRenderer:
         """Sceglie il frame corretto in base allo stato del ghost.
 
         Ordine di priorità:
-            1. state == "eaten"      → sprite "dead" (occhi)
-            2. state == "frightened" → fear / fear_flash (condivisi)
-            3. altrimenti            → frames per direzione (facing)
+            1. state == "eaten"          : sprite "dead"
+            2. state == "frightened"     : fear / fear_flash
+            3. state == frightened_flash : sprite chiaro
+            4. altrimenti                : frames per direzione
         """
         name = info.get("name", "")
         sprites = self.assets.ghosts.get(name)
@@ -219,24 +243,32 @@ class EntityRenderer:
             return None
 
         state = info.get("state", "normal")
-        # 1) Mangiato → occhi
+        # ----------------------------------------------------------
+        # 1) Eaten: eyes
+        # ----------------------------------------------------------
         if state == "eaten":
             if sprites.dead:
                 if isinstance(sprites.dead[0], Surface):
                     return sprites.dead[0]
             return sprites.first_frame()
-
-        # 2) Spaventato → fear / fear_flash (condivisi tra tutti i ghost)
+        # ---------------------------------------------------------
+        # 2) frightened: fear / fear_flash
+        # ---------------------------------------------------------
         if state == "frightened":
+
+            # NOTE: Abbiamo la logica del fear...
             key = "fear_flash" if frightened_flash else "fear"
             frames = self.assets.ghost_shared.get(key) or []
             if not frames:
+                # -------------------------------------------------
                 # Fallback: se mancano i frame flash, prova "fear".
+                # -------------------------------------------------
                 frames = self.assets.ghost_shared.get("fear") or []
             if frames:
                 return frames[self._frame_idx(info, len(frames))]
-
-        # 3) Normale → per direzione
+        # ----------------------------------------------------------
+        # 3) Normale : per direzione
+        # ----------------------------------------------------------
         facing = info.get("facing", "right")
         frames = sprites.frames_for_direction(facing)
         if not frames:
@@ -253,11 +285,16 @@ class EntityRenderer:
         """
         if n_frames <= 1:
             return 0
+
         if info.get("moving"):
             p = float(info.get("move_progress", 0.0))
             return int(p * n_frames) % n_frames
+
         elapsed_ms = int(time.monotonic() * 1000)
-        return (elapsed_ms // self.GHOST_IDLE_FRAME_MS) % n_frames
+
+        return (
+            (elapsed_ms // self.GHOST_IDLE_FRAME_MS) % n_frames
+        )
 
     # =========================================================================
     #   HELPERS

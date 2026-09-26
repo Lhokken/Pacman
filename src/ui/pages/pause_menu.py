@@ -3,25 +3,25 @@
 Displays the paused game beneath a semi-transparent overlay, featuring a
 vertical menu (Resume / Settings / Main menu).
 
-NOTE: the `GamePage` received by the constructor is
-**reused** upon resuming, not recreated. The HUD timer survives
-the pause because the `GamePage` instance remains alive in the
-`self.game_page` field of this menu.
+NOTE: The `GamePage` received by the constructor is **reused** upon resuming,
+not recreated. The HUD timer survives the pause because the `GamePage
+instance remains active in this menu's `self.game_page` field.
 
-Layout: delegated to `PauseLayout`. Positioning ratios are defined there.
+Layout is delegated to `PauseLayout`.
 """
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
-import logging
 import pygame
 from pygame.surface import Surface
 
 from ..scene import Scene
 from ..components.button import Button
 from ..layout.pause_layout import PauseLayout
+from ..configUI.ui_config import FontRole
 
 if TYPE_CHECKING:
     from ..app import GameApp
@@ -30,39 +30,53 @@ logger = logging.getLogger(__name__)
 
 
 class PauseMenu(Scene):
-    """Pause menu scene."""
+    """Scena del menu di pausa.
 
-    # Overlay nero sopra il gioco (alpha 0-255).
-    OVERLAY_ALPHA = 180
+    Disegna la partita sottostante tramite `game_page.draw()`, applica
+    un overlay semi-trasparente e mostra un menu verticale navigabile
+    da tastiera.
+    """
 
     # =========================================================
     #   Init
     # =========================================================
     def __init__(self, app: GameApp, game_page: Scene) -> None:
-        """Inizializza il menu pausa.
+        """Initialize pause menu.
 
         Args:
-            app: istanza GameApp.
-            game_page: la GamePage da riprendere al resume. Va
-                conservata per istanza: ricrearla perderebbe lo
-                stato (incluso il timer dell'HUD).
+            app       : The `GameApp` instance used for screen access
+                        and scene switching.
+            game_page : The active `GamePage` to be paused. It is not
+                        recreated upon resuming.
         """
         super().__init__(app)
-
-        # Riferimento alla scena di gioco da riprendere. NON ricrearla.
         self.game_page = game_page
-
-        # Manager condivisi (da Scene). Alias di comodo.
-        self.font_title = self.fonts.font_title_extraLarge
-        self.font_option = self.fonts.font_white
-        self.font_option_selected = self.fonts.font_title_small
-
-        # Layout: titolo ancorato in alto, bottoni centrati.
+        # ------------------------------------------------------------
+        #   FONT
+        # ------------------------------------------------------------
+        self.font_title = (
+            self.theme.font_config(
+                FontRole.SCREEN_TITLE
+            )
+        )
+        self.font_option = (
+            self.theme.font_config(
+                FontRole.OPTION
+            )
+        )
+        self.font_option_selected = (
+            self.theme.font_config(
+                FontRole.OPTION_SELECTED
+            )
+        )
+        # ------------------------------------------------------------
+        #   MENU PAGE
+        # ------------------------------------------------------------
         self._pause_layout = PauseLayout()
-
-        # Overlay pre-renderizzato una volta (evita di ricrearlo ogni frame).
         self._overlay: Surface | None = None
-
+        # ------------------------------------------------------------
+        #   BUTTONS
+        # ------------------------------------------------------------
         self.buttons: list[Button] = []
         self._create_buttons()
         self.selected_index = 0
@@ -71,7 +85,11 @@ class PauseMenu(Scene):
     #   Lifecycle
     # =========================================================
     def handle_events(self) -> None:
-        """FA TODO: Docstring."""
+        """Handle menu input events.
+
+        It forwards keyboard events to `_handle_key` and closes
+        the application if a QUIT event is received.
+        """
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.app.running = False
@@ -79,6 +97,11 @@ class PauseMenu(Scene):
                 self._handle_key(event)
 
     def _handle_key(self, event: pygame.event.Event) -> None:
+        """Handle a key press.
+
+        Args:
+            event : Keyboard event with a `key` attribute.
+        """
         if event.key == pygame.K_UP:
             self.selected_index = (
                 (self.selected_index - 1) % len(self.buttons)
@@ -88,22 +111,21 @@ class PauseMenu(Scene):
                 (self.selected_index + 1) % len(self.buttons)
             )
         elif event.key == pygame.K_ESCAPE:
-            # ESC in pausa = resume (scorciatoia naturale).
             self._resume_game()
         elif event.key == pygame.K_RETURN:
             self.buttons[self.selected_index].handle_event(event)
-        elif event.key == pygame.K_c:
-            # Scorciatoia dev. Da gateare su app.debug quando esisterà.
-            from .cheat import CheatPage
-            self.app.switch_scene(CheatPage(self.app))
-
-    # Nessun `update()`: il gioco sotto è in pausa, l'HUD non deve
-    # avanzare, e questa schermata non ha animazioni proprie.
 
     def draw(self, screen: Surface) -> None:
-        """FA TODO: Docstring."""
+        """Disegna la partita sotto OVERLAY , l'overlay e il menu.
+
+        Args:
+            screen: Target surface.
+        """
+        # OVERLAY ------------------------------------------
         self._draw_overlay(screen)
+        # PAUSE --------------------------------------------
         self._layout_pause_menu(screen)
+        # BUTTON -------------------------------------------
         for button in self.buttons:
             button.draw(screen)
 
@@ -111,27 +133,29 @@ class PauseMenu(Scene):
     #   Layout
     # =========================================================
     def _layout_pause_menu(self, screen: Surface) -> None:
-        """Calculate the title and button layout, then draws the title.
+        """Calculate the layout of the title and menu buttons.
 
-        The math is in PauseLayout. Here:
-            1. calculate positions
-            2. draw title (depends on the calculated Y)
-            3. apply rect + selection to the buttons
+        Args:
+            screen : Surface from which to read the current
+                     dimensions.
         """
         block = self._pause_layout.compute(
             screen.get_width(),
             screen.get_height(),
             n_buttons=len(self.buttons),
         )
-
-        # Titolo.
-        title_surface = self.font_title.render("PAUSE")
+        # TITLE -------------------------------------------
+        title_surface = (
+            self.font_title.render("PAUSE")
+        )
         title_rect = title_surface.get_rect(
             center=(screen.get_width() // 2, block.title_center_y)
         )
-        screen.blit(title_surface, title_rect)
-
-        # Bottoni.
+        # SCREEN -------------------------------------------
+        screen.blit(
+            title_surface, title_rect
+        )
+        # BUTTON -------------------------------------------
         for i, (button, rect) in enumerate(
             zip(self.buttons, block.button_rects)
         ):
@@ -139,32 +163,51 @@ class PauseMenu(Scene):
             button.set_selected(i == self.selected_index)
 
     # =========================================================
-    #   Overlay
+    #   layout - Overlay
     # =========================================================
     def _draw_overlay(self, screen: Surface) -> None:
-        """Disegna il gioco sotto, poi scurisce con un overlay nero."""
-        # 1) Frame congelato della scena di gioco.
+        """Disegna la partita sottostante e applica l'overlay.
+
+        L'overlay viene ricreato solo se la dimensione dello schermo
+        cambia, per evitare di riallocare una surface ogni frame.
+
+        Args:
+            screen: Surface di destinazione.
+        """
         self.game_page.draw(screen)
 
-        # 2) Overlay semitrasparente pre-renderizzato.
         w, h = screen.get_size()
         if self._overlay is None or self._overlay.get_size() != (w, h):
             self._overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-            self._overlay.fill((20, 20, 30, self.OVERLAY_ALPHA))
+            self._overlay.fill(self.theme.palette.OVERLAY_RGBA)
         screen.blit(self._overlay, (0, 0))
 
     # =========================================================
     #   Buttons
     # =========================================================
     def _create_buttons(self) -> None:
+        """Create the menu buttons.
+
+        The size (rect) is a placeholder: it is redefined every
+        frame by `_layout_menu_block`.
+        """
         options = [
-            ("Resume",    self._resume_game),
-            ("Settings",  self._show_impostazioni),
-            ("Main menu", self._go_main_menu),
+            (
+                "Resume",
+                self._resume_game
+            ),
+            (
+                "Settings",
+                self._show_impostazioni
+            ),
+            (
+                "Main menu",
+                self._go_main_menu
+            ),
         ]
+        # LABEL BUTTONS -----------------------------------
         for label, callback in options:
-            # Rect placeholder: posizionato in _layout_pause_menu.
-            rect = pygame.Rect(0, 0, 10, 10)
+            rect = pygame.Rect(0, 0, 10, 10)  # segnaposto!
             self.buttons.append(Button(
                 rect,
                 label,
@@ -177,18 +220,17 @@ class PauseMenu(Scene):
     #   Actions
     # =========================================================
     def _resume_game(self) -> None:
-        """Resumes the existing GamePage (same instance).
-
-        The Page's `on_resume()` method (which resynchronizes the HUD)
-        is automatically invoked by `GameApp.switch_scene()`.
-        """
+        """Riprende la partita tornando alla `GamePage` viva."""
         self.app.switch_scene(self.game_page)
 
     def _go_main_menu(self) -> None:
+        """Torna al menu principale, abbandonando la partita."""
         from .main_menu import MainMenu
         self.app.switch_scene(MainMenu(self.app))
 
     def _show_impostazioni(self) -> None:
-        """Show the page with the game's cheating settings."""
+        """Show the cheat settings page."""
         from .cheat import CheatPage
-        self.app.switch_scene(CheatPage(self.app))
+        self.app.switch_scene(
+            CheatPage(self.app, self.game_page)
+        )

@@ -121,7 +121,7 @@
 **Criteri di accettazione:**
 
 - [v] 3 vite iniziali (da config)
-- [ ] Perde vita se toccato da ghost
+- [v] Perde vita se toccato da ghost
 - [ ] Respawn al centro dopo perdita vita
 - [ ] Game over quando vite = 0
 
@@ -139,7 +139,7 @@
 **Dipende da:** #13
 **Criteri di accettazione:**
 
-- [ ] Almeno un comportamento definito (es. distanza euclidea verso player)
+- [v] Almeno un comportamento definito (es. distanza euclidea verso player)
 - [ ] Comportamento documentato nel README
 
 ### #15 — Ghosts: stato edible/eaten + respawn [feature]
@@ -148,7 +148,7 @@
 **Dipende da:** #13, #14
 **Criteri di accettazione:**
 
-- [ ] Ghost scappa quando edible
+- [v] Ghost scappa quando edible
 - [ ] Ghost mangiato torna al proprio angolo dopo N secondi (config)
 
 ### #16 — Pacgum: piazzamento e eating [feature]
@@ -221,8 +221,8 @@
 **Dipende da:** #19
 **Criteri di accettazione:**
 
-- [ ] Mostra score finale
-- [ ] Prompt inserimento nome giocatore
+- [v] Mostra score finale
+- [v] Prompt inserimento nome giocatore
 
 ### #24 — Highscore system [feature]
 
@@ -253,11 +253,11 @@
 **Assegnato:** *gcerrete*
 **Criteri di accettazione:**
 
-- [ ] Invincibilità
-- [ ] Skip livello
-- [ ] Freeze ghost
-- [ ] Extra vite
-- [ ] Attivabile facilmente (es. tasto dedicato), utile per peer review
+- [v] Invincibilità
+- [v] Skip livello
+- [v] Freeze ghost
+- [v] Extra vite
+- [v] Attivabile facilmente (es. tasto dedicato), utile per peer review
 
 [GOAL] **Milestone settimana 3:** loop completo Main Menu → gioco → vittoria/sconfitta → nome → highscore → menu.
 

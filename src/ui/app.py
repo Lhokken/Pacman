@@ -1,8 +1,14 @@
-"""Main application controller for Pac-Man."""
+"""Main controller for the Pac-Man application.
+
+It manages Pygame initialization, the game loop, and scene switching.
+All Pygame resources are properly released upon exit.
+"""
 
 from __future__ import annotations
 
 import logging
+import sys
+
 from pathlib import Path
 
 import pygame
@@ -16,37 +22,90 @@ from src.core.parsing.parsey import GameConfig
 logger = logging.getLogger(__name__)
 
 
-# TODO: leggere da GameConfig quando esporrà il valore.
-ASSETS_TILE_SIZE = 40
-ASSETS_SUBDIR = ("assets", "img")
-
-# Numero di frame durante i quali gli input vengono scartati dopo uno
-# switch di scena. Serve a evitare che il key repeat di pygame (attivo
-# con set_repeat(200, 100)) faccia arrivare lo stesso KEYDOWN anche
-# alla nuova scena. 15 frame @ 60 fps ≈ 250 ms, > 200 ms di delay.
-SWITCH_INPUT_COOLDOWN_FRAMES = 15
-
-
-def _find_assets_base(start: Path) -> Path:
-    """Cerca `assets/img` risalendo da `start`. Fallback: CWD/assets/img."""
-    for parent in (start, *start.parents):
-        candidate = parent.joinpath(*ASSETS_SUBDIR)
-        if candidate.is_dir():
-            return candidate
-    fallback = Path.cwd().joinpath(*ASSETS_SUBDIR)
-    logger.warning("assets/img non trovato, fallback su %s", fallback)
-    return fallback
-
-
 class GameApp:
     """Main application controller.
 
-    Handles pygame initialization, the main game loop, and scene
-    switching. All pygame resources are properly cleaned up on exit.
+    Manages Pygame initialization, the game loop, and scene switching.
+    All Pygame resources are properly released upon exit.
+
+    Attributes:
+        config        : Game configuration loaded from `GameConfig`.
+        screen        : Current window surface.
+        clock         : Pygame clock used to cap the frame rate at 60 FPS.
+        running       : `True` as long as the main loop should continue.
+        is_fullscreen : Current screen mode state.
+        debug         : If `True`, enables development shortcuts within scenes.
+        assets_base   : Path to the `assets/img` folder.
+        asset_manager : Shared assets, linked to `ASSETS_TILE_SIZE`.
+        font_manager  : Fonts shared across all scenes.
+        current_scene : Currently active scene.
     """
 
-    def __init__(self, config: GameConfig) -> None:
+    ASSETS_TILE_SIZE = 40
+    ASSETS_SUBDIR = ("assets", "img")
+    SWITCH_INPUT_COOLDOWN_FRAMES = 15
+
+    # ==================================================================
+    #   Helper statici
+    # ==================================================================
+    @staticmethod
+    def _find_assets_base(start: Path) -> Path:
+        """Search for the `assets` folder by traversing from `start`.
+
+        Args:
+            start: The directory from which to start the search.
+
+        Returns:
+            The path to the `assets/img` folder.
+
+        Raises:
+            RuntimeError: If the folder is not found either by traversing
+                          upwards from `start` or in `CWD/assets/img`.
+        """
+        for parent in (start, *start.parents):
+            candidate = parent.joinpath(*GameApp.ASSETS_SUBDIR)
+            if candidate.is_dir():
+                return candidate
+
+        fallback = Path.cwd().joinpath(*GameApp.ASSETS_SUBDIR)
+        if fallback.is_dir():
+            logger.warning(
+                "assets/img not found from %s, using fallback %s",
+                start,
+                fallback,
+            )
+            return fallback
+
+        raise RuntimeError(
+            f"Asset folder not found: neither going up from {start} "
+            f"not in {fallback}."
+        )
+
+    # ==================================================================
+    #   Init
+    # ==================================================================
+    def __init__(
+        self,
+        config: GameConfig,
+        *,
+        debug: bool = False,
+    ) -> None:
+        """Initialize pygame, the window, and shared resources.
+
+        Args:
+            config  : The parsed game configuration.
+            debug   : If `True`, enables development shortcuts in
+                      scenes (G/V keys in the menu, C during pause).
+                      Defaults to `False`.
+
+        Raises:
+            RuntimeError : If the configuration contains no levels, if
+                           pygame fails to initialize, if the window
+                           cannot be created, or if the assets folder
+                           does not exist.
+        """
         self.config = config
+        self.debug = debug
 
         if not config.levels:
             raise RuntimeError(
@@ -57,10 +116,16 @@ class GameApp:
             pygame.init()
             pygame.key.set_repeat(200, 100)
         except pygame.error as e:
-            logger.error("Failed to initialize pygame: %s", e)
-            raise RuntimeError(f"Pygame initialization failed: {e}") from e
-
-        # --- Display ---
+            logger.error(
+                "Failed to initialize pygame: %s",
+                e
+                )
+            raise RuntimeError(
+                f"Pygame initialization failed: {e}"
+            ) from e
+        # --------------------------------------------------------------
+        # --- Display
+        # --------------------------------------------------------------
         try:
             desktop_info = pygame.display.Info()
             desktop_width = desktop_info.current_w
@@ -87,28 +152,59 @@ class GameApp:
         self.clock = pygame.time.Clock()
         self.running = True
         self.is_fullscreen = False
-
-        # Cooldown di input post-switch. Vedi SWITCH_INPUT_COOLDOWN_FRAMES.
+        # --------------------------------------------------------------
+        # Cooldown di input post-switch.
+        # --------------------------------------------------------------
         self._input_cooldown = 0
 
+        # ---------------------------------------------------------------
         # --- Shared assets/fonts: creati UNA volta, riusati da tutti ---
-        self.assets_base: Path = _find_assets_base(
-            Path(__file__).resolve().parent
-        )
+        # ---------------------------------------------------------------
+        try:
+            self.assets_base: Path = self._find_assets_base(
+                Path(__file__).resolve().parent
+            )
+        except RuntimeError as e:
+            logger.error(
+                "Unable to start the game: %s",
+                e
+            )
+            pygame.quit()
+            sys.exit(1)
+
         self.asset_manager = AssetManager(
-            self.assets_base, tile_size=ASSETS_TILE_SIZE
+            self.assets_base, tile_size=self.ASSETS_TILE_SIZE
         )
         self.font_manager = FontManager(self.assets_base)
-
+        # --------------------------------------------------------------
+        # NOTE: `Scene.__init__` deve costruire `Theme(app.font_manager)`.
+        # Se non lo fa, tutte le scene esplodono su `self.theme`.
+        # --------------------------------------------------------------
         self.current_scene: Scene = MainMenu(self)
+        # L'hook di resume deve partire anche per la scena iniziale,
+        # altrimenti eventuale logica in `MainMenu.on_resume` non gira.
+        self.current_scene.on_resume()
 
         logger.info(
-            "GameApp initialized: %d level(s), screen %dx%d, assets=%s",
-            len(config.levels), screen_width, screen_height, self.assets_base,
+            "GameApp initialized: %d level(s), screen %dx%d, assets=%s, "
+            "debug=%s",
+            len(config.levels),
+            screen_width,
+            screen_height,
+            self.assets_base,
+            self.debug,
         )
 
+    # ==================================================================
+    #   Fullscreen - scene switching
+    # ==================================================================
     def toggle_fullscreen(self) -> None:
-        """Toggle between windowed and fullscreen mode."""
+        """Toggles between windowed and full-screen modes."""
+        # NOTE: After switching modes, notifies the current scene of
+        #       the new dimensions via `on_resize`, ensuring that
+        #       screen-relative metrics (maze, panels, HUD) are
+        #       recalculated even if pygame does not emit a `VIDEORESIZE`
+        #       event for the toggle.
         self.is_fullscreen = not self.is_fullscreen
         if self.is_fullscreen:
             self.screen = pygame.display.set_mode(
@@ -117,35 +213,52 @@ class GameApp:
         else:
             try:
                 desktop_info = pygame.display.Info()
-                desktop_width = desktop_info.current_w
-                desktop_height = desktop_info.current_h
+                desktop_w = desktop_info.current_w
+                desktop_h = desktop_info.current_h
             except (IndexError, pygame.error):
-                desktop_width, desktop_height = 1200, 800
+                desktop_w, desktop_h = 1200, 800
             self.screen = pygame.display.set_mode(
-                (int(desktop_width * 0.8), int(desktop_height * 0.8)),
+                (
+                    int(desktop_w * 0.8),
+                    int(desktop_h * 0.8)
+                ),
                 pygame.RESIZABLE,
             )
+        # `set_mode` can change the surface size without!! --------
+        # emitting VIDEORESIZE: Force the notification to the scene.
+        new_w, new_h = self.screen.get_size()
+        self.current_scene.on_resize(new_w, new_h)
+
         logger.info("Fullscreen toggled: %s", self.is_fullscreen)
 
     def switch_scene(self, scene: Scene) -> None:
         """Change the current scene.
 
-        Sequenza:
-            1. Notifica alla vecchia scena che sta per essere abbandonata
-            (hook `on_pause`, es. per congelare timer).
-            2. Sostituisce la scena corrente.
-            3. Attiva un breve cooldown di input (evita key repeat).
-            4. Notifica alla nuova scena che è attiva (hook `on_resume`).
+            1. Notifies the old scene that it is about to be
+               left (hook `on_pause`).
+            2. Replaces the current scene.
+            3. Activates a short input cooldown (prevents key repeat).
+            4. Notifies the new scene that it is active (hook `on_resume`).
+
+        Args:
+            scene: The new scene to make active.
         """
+        # PAUSE CONTROLL -----------------------------------------------
         if self.current_scene is not None:
             self.current_scene.on_pause()
         self.current_scene = scene
-        self._input_cooldown = SWITCH_INPUT_COOLDOWN_FRAMES
+        self._input_cooldown = self.SWITCH_INPUT_COOLDOWN_FRAMES
         scene.on_resume()
-        logger.debug("Switched to scene: %s", type(scene).__name__)
 
+    # ==================================================================
+    #   Main loop
+    # ==================================================================
     def run(self) -> None:
-        """Run the main game loop until quit."""
+        """Run the main loop until shutdown.
+
+        Always releases pygame in the `finally` block, even in the
+        event of an error or a `KeyboardInterrupt`.
+        """
         try:
             while self.running:
                 if self._input_cooldown > 0:
@@ -159,25 +272,35 @@ class GameApp:
                 pygame.display.flip()
                 self.clock.tick(60)
         except KeyboardInterrupt:
-            logger.info("Shutdown requested from terminal")
+            logger.info(
+                "Shutdown requested from terminal"
+            )
         except pygame.error as e:
-            logger.error("Pygame error in main loop: %s", e)
+            logger.error(
+                "Pygame error in main loop: %s",
+                e
+            )
         except Exception:
-            logger.exception("Unexpected error in main loop")
+            logger.exception(
+                "Unexpected error in main loop"
+            )
         finally:
             pygame.quit()
-            logger.info("GameApp shut down cleanly")
+            logger.info(
+                "GameApp shut down cleanly"
+            )
 
     # ==================================================================
     #   Interni
     # ==================================================================
     def _drain_events_during_cooldown(self) -> None:
-        """Consuma la coda eventi senza consegnarli alla scena.
+        """Consumes the event queue without passing events to the scene.
 
-        Durante il cooldown post-switch vogliamo ignorare tastiera e
-        mouse, ma dobbiamo comunque onorare QUIT: chiudere la finestra
-        con la X deve terminare l'app anche in questa finestra di tempo.
+        During the post-switch cooldown, we want to ignore keyboard and
+        mouse input, but we must still count QUIT events.
         """
+        # closing the window via the 'X' button: -----------------------
+        # IT MUST terminate the application, even during time window.
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False

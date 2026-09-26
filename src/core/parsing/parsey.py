@@ -157,9 +157,17 @@ class GameConfig:
         points_per_super_pacgum: Points for super pacgums (>= 0).
         points_per_ghost: Points for edible ghosts (>= 0).
         level_max_time: Time limit per level in seconds (>= 1).
+        # TODO: Add frightened_duration and frightened_flash_duration here.
         highscore_filename: Name of the highscore file.
         levels: List of validated LevelConfig objects.
     """
+
+    # -------------------------------------------------------
+    # NOTE: STATO FLASH NON FUNZIONANTE - VEDI ANCHE PACAN.PY
+    # -------------------------------------------------------
+    # TODO: Add frightened_duration and frightened_flash_duration here.
+    # These values will configure the frightened timer and its final
+    # flashing phase for the UI.
 
     DEFAULT_LIVES = 3
     DEFAULT_PACGUM = 42
@@ -170,7 +178,9 @@ class GameConfig:
     DEFAULT_LEVEL_MAX_TIME = 90
     DEFAULT_HIGHSCORE_FILENAME = "highscores.json"
 
+    # -------------------------------------------------------
     # Validity ranges
+    # -------------------------------------------------------
     MIN_LIVES = 1
     MAX_LIVES = 99
     MIN_PACGUM = 0
@@ -305,6 +315,12 @@ class GameConfig:
         highscore_filename = cls._parse_highscore_filename(data)
 
         # Parse all integer values with range validation
+        # -------------------------------------------------------
+        # NOTE: STATO FLASH NON FUNZIONANTE
+        # -------------------------------------------------------
+        # NOTE: New frightened timing values must follow this path:
+        # config.json -> data.get(...) -> ConfigHelper.safe_int(...)
+        # -> GameConfig field -> core timer/UI consumer.
         return cls(
             lives=ConfigHelper.safe_int(
                 data.get("lives"),
