@@ -1,14 +1,9 @@
-"""Static Pac-Man high scores page.
-
-It displays a leaderboard with columns (RANK, NAME, SCORE) and
-a minimum number of rows, filling empty slots with placeholders.
-The footer consists of an "ESC TO RETURN TO MENU" button that
-returns the user to the main menu.
-"""
+"""VI.8 User Interface higt score."""
 
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pygame
@@ -16,277 +11,99 @@ from pygame.surface import Surface
 
 from ..scene import Scene
 from ..components.button import Button
-from ..configUI.ui_config import FontRole
-from ..layout.hight_score_layout import (
-    HighscoreLayout,
-    HighscoreMetrics,
-)
+from ..managers.font_manager import FontManager
+# from ..layout.HightScore_layout.py import HightScoreLayout
 
 if TYPE_CHECKING:
     from ..app import GameApp
-    from ..components.bitmap_font import BitmapFont
 
 logger = logging.getLogger(__name__)
 
 
-class HighScorePage(Scene):
-    """Static high scores page.
+class HightScorePage(Scene):
+    """Scene shown when the player completes all levels."""
 
-    Layout and content are calculated in `_rebuild()` and cached
-    until the screen size changes. The footer is a permanently
-    selected button that responds to Esc and Enter.
-    """
-
-    MIN_ROWS = 10
-    PLACEHOLDER_NAME = "---"
-    PLACEHOLDER_SCORE = "0"
-
-    # ==================================================================
-    #   Init
-    # ==================================================================
-    def __init__(self, app: GameApp) -> None:
-        """Initialize the high scores page.
-
-        Args:
-            app: Instance of `GameApp` from which to access the screen
-                 and handle scene switching.
-        """
+    def __init__(self, app: GameApp, score: int = 0) -> None:
+        """FA TODO: DOCSTRING."""
         super().__init__(app)
 
-        # ------------------------------------------------------------
-        # --- Font
-        # ------------------------------------------------------------
-        self._font_section = (
-            self.theme.font_config(
-                FontRole.HEADING
-            )
-        )
-        self._font_header = (
-            self.theme.font_config(
-                FontRole.SECTION_TITLE
-            )
-        )
-        self._font_row = (
-            self.theme.font_config(
-                FontRole.OPTION
-            )
-        )
-        self._font_footer = (
-            self.theme.font_config(
-                FontRole.OPTION
-            )
-        )
-        self._font_footer_selected = (
-            self.theme.font_config(
-                FontRole.OPTION_SELECTED
-            )
-        )
-        # ------------------------------------------------------------
-        #   Layout
-        # ------------------------------------------------------------
-        self._layout = HighscoreLayout()
+        # ------------------------------------------------------------------
+        #   Assets and fonts
+        # ------------------------------------------------------------------
+        assets_base = Path(__file__).resolve().parents[3] / "assets" / "img"
+        self.fonts = FontManager(assets_base)
+        self.font_title = self.fonts.font_title_big
+        self.font_text = self.fonts.font_white
+        self.font_button = self.fonts.font_white
+        self.font_button_selected = self.fonts.font_title_small
 
-        # ------------------------------------------------------------
-        #   CACHE
-        # ------------------------------------------------------------
-        self._metrics: HighscoreMetrics | None = None
-        self._metrics_size: tuple[int, int] = (0, 0)
-        self._rows: list[tuple[str, str, str]] = []
-        self._rebuild()
-        # ------------------------------------------------------------
-        # --- Bottone back
-        # ------------------------------------------------------------
-        self._back_button = Button(
-            pygame.Rect(0, 0, 400, 50),
-            "ESC TO RETURN TO MENU",
-            self._font_footer,
-            self._font_footer_selected,
+        # PLACEHOLDER — real score will be passed from game state
+
+        # ------------------------------------------------------------------
+        #   Back button (only one, always selected)
+        # ------------------------------------------------------------------
+        self.back_button = Button(
+            pygame.Rect(0, 0, 300, 50),
+            "Back to Menu",
+            self.font_button,
+            self.font_button_selected,
             on_select=self._go_back,
         )
-        self._back_button.set_selected(True)
+        self.buttons = [self.back_button]
 
-    # ==================================================================
-    #   Lifecycle
-    # ==================================================================
+    def _go_back(self) -> None:
+        """Return to the main menu."""
+        from .main_menu import MainMenu
+        self.app.switch_scene(MainMenu(self.app))
+
+    def _layout_buttons(self, screen_width: int, screen_height: int) -> None:
+        """Position the back button near the bottom."""
+        self.back_button.rect.center = (
+            screen_width // 2,
+            screen_height - 100,
+        )
+        self.back_button.set_selected(True)
+
     def handle_events(self) -> None:
-        """Handle the page's input events.
-
-        ESC returns to the main menu; Enter activates the
-        Back button (which is always selected).
-        """
+        """Process input events."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.app.running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
+                if event.key == pygame.K_RETURN:
+                    self.back_button.handle_event(event)
+                elif event.key == pygame.K_ESCAPE:
                     self._go_back()
-                elif event.key == pygame.K_RETURN:
-                    self._back_button.handle_event(event)
-
-    def update(self) -> None:
-        """Recalculate the metrics if the screen size changes."""
-        if self.app.screen.get_size() != self._metrics_size:
-            self._rebuild()
 
     def draw(self, screen: Surface) -> None:
-        """Draws the title, headers, rows, and footer.
+        """Render the hght score."""
+        screen.fill((20, 20, 30))
 
-        Args:
-            screen: Destination surface.
-        """
-        screen.fill(
-            self.theme.palette.DARK
+        # Title
+        title_surface = self.font_title.render("Sei in cima alla classifica?!")
+        title_rect = title_surface.get_rect(
+            center=(screen.get_width() // 2, 100)
         )
-        assert self._metrics is not None
-        m = self._metrics
-        cx = m.content_cx
-        # ------------------------------------------------------------
-        #   TITLE
-        # ------------------------------------------------------------
-        title = self._font_section.render("HIGH SCORES")
-        self.render.blit_center(
-            screen,
-            title,
-            cx,
-            m.title_center_y
-        )
-        # ------------------------------------------------------------
-        #   HEADER
-        # ------------------------------------------------------------
-        self._draw_cell(
-            screen,
-            "RANK",
-            m.col_rank_x,
-            m.header_center_y,
-            self._font_header,
-        )
-        self._draw_cell(
-            screen,
-            "NAME",
-            m.col_name_x,
-            m.header_center_y,
-            self._font_header,
-        )
-        self._draw_cell(
-            screen,
-            "SCORE",
-            m.col_score_x,
-            m.header_center_y,
-            self._font_header,
-        )
-        # ------------------------------------------------------------
-        #   ROW
-        # ------------------------------------------------------------
-        for i, (rank, name, score) in enumerate(self._rows):
-            y = m.rows_top_y + i * m.row_height
-            self._draw_cell(
-                screen,
-                rank,
-                m.col_rank_x,
-                y,
-                self._font_row
-            )
-            self._draw_cell(
-                screen,
-                name,
-                m.col_name_x,
-                y,
-                self._font_row
-            )
-            self._draw_cell(
-                screen,
-                score,
-                m.col_score_x,
-                y,
-                self._font_row
-            )
-        # ------------------------------------------------------------
-        #   FOOTER
-        # ------------------------------------------------------------
-        self._back_button.rect.center = (
-            m.content_cx,
-            m.footer_center_y
-        )
-        self._back_button.set_selected(True)
-        self._back_button.draw(screen)
+        screen.blit(title_surface, title_rect)
 
-    # ==================================================================
-    #   NAVIGATION
-    # ==================================================================
-    def _go_back(self) -> None:
-        """Torna al menu principale."""
-        from .main_menu import MainMenu
-        self.app.switch_scene(MainMenu(self.app))
-
-    # ==================================================================
-    #   METRICS
-    # ==================================================================
-    def _rebuild(self) -> None:
-        """Recalculate metrics and rows for the current dimension."""
-        w, h = self.app.screen.get_size()
-        self._metrics_size = (w, h)
-        self._metrics = (
-            self._layout.compute(
-                w,
-                h,
-                n_rows=self.MIN_ROWS
-            )
+        # Congratulatory message
+        msg_surface = self.font_text.render(
+            "I 10 utenti piu abili di questo torneo."
         )
-        self._rows = self._build_rows()
-
-    def _build_rows(self) -> list[tuple[str, str, str]]:
-        """Construct at least `MIN_ROWS` leaderboard rows.
-
-        The initial rows come from the actual store (if available);
-        missing positions are filled with placeholders.
-
-        TODO: HOOK UP TO CORE
-
-        Returns:
-            A list of `(rank, name, score)` tuples of length `MIN_ROWS`.
-        """
-        store = (
-            getattr(self.app, "highscore_store", None)
+        msg_rect = msg_surface.get_rect(
+            center=(screen.get_width() // 2, 180)
         )
-        entries = (
-            store.top(self.MIN_ROWS) if store is not None else []
+        screen.blit(msg_surface, msg_rect)
+
+        # Score
+        score_surface = self.font_text.render(
+            "utente 1 ------------------ 1000"
         )
-        # -------------------------------------------------------------
-        # Lista dei Nomi delle persone.
-        # -------------------------------------------------------------
-        rows: list[tuple[str, str, str]] = []
-        for i in range(self.MIN_ROWS):
-            rank = str(i + 1)
-            if i < len(entries):
-                e = entries[i]
-                rows.append((rank, e.name, str(e.score)))
-            else:
-                rows.append((
-                    rank,
-                    self.PLACEHOLDER_NAME,
-                    self.PLACEHOLDER_SCORE,
-                ))
-        return rows
+        score_rect = score_surface.get_rect(
+            center=(screen.get_width() // 2, 240)
+        )
+        screen.blit(score_surface, score_rect)
 
-    # ==================================================================
-    #   Draw helpers
-    # ==================================================================
-    def _draw_cell(
-        self,
-        screen: Surface,
-        text: str,
-        cx: int,
-        cy: int,
-        font: BitmapFont,
-    ) -> None:
-        """Draws a cell centered on `(cx, cy)`.
-
-        Args:
-            screen : Target surface.
-            text   : Text to render.
-            cx     : X coordinate of the cell center.
-            cy     : Y coordinate of the cell center.
-            font   : Font to render the text in.
-        """
-        surf = font.render(text)
-        self.render.blit_center(screen, surf, cx, cy)
+        # Back button
+        self._layout_buttons(screen.get_width(), screen.get_height())
+        self.back_button.draw(screen)

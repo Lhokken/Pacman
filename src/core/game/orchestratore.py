@@ -202,7 +202,7 @@
 # #   - frame-by-frame state update
 # #   - scene transitions and pause logic
 # #
-# # These are gameplay responsibilities and should live in the core/orchestrator.
+# # These are gameplay responsibilities and live in the core/orchestrator.
 # # The UI page should instead only own:
 # #   - asset/font loading
 # #   - responsive layout and screen metrics

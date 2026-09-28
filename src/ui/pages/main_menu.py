@@ -222,8 +222,8 @@ class MainMenu(Scene):
 
     def _show_highscores(self) -> None:
         """Show the high scores page."""
-        from .hight_score import HighScorePage
-        self.app.switch_scene(HighScorePage(self.app))
+        # from .hight_score import HighScorePage
+        # self.app.switch_scene(HighScorePage(self.app))
 
     def _show_instructions(self) -> None:
         """Show the game instructions page."""

@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from src.core.entities.pacgums import PacgumsManagement
 
 logger = logging.getLogger(__name__)
-
 #   Chapter VI - Game specifications  VI.2 Player -----------------------------
 #
 #   • Can move through corridors only (no walls).
@@ -103,7 +102,6 @@ class PacmanPlayer:
         self.maze = maze
         self.maze_height = len(maze)
         self.maze_width = len(maze[0]) if maze else 0
-        # self.ghosts_positions: list[tuple[int, int]] = []
         self.level: int = 0
 
     # Public methods -------------------------------------------------------
@@ -334,10 +332,10 @@ class PacmanPlayer:
     def life_loss(self) -> None:
         """NOTE: life loss manager
         TODO: connect with game over page"""
-        self.lives -= 1
-        self.grid_x = self.respawn[0]
-        self.grid_y = self.respawn[1]
-        self.from_x = self.respawn[0]
-        self.from_y = self.respawn[1]
-        self.to_x = self.respawn[0]
-        self.to_y = self.respawn[1]
+        if self.lives > 0:
+            self.lives -= 1
+        else:
+            print("Game over: pacman line 339")
+        self.grid_x, self.grid_y = self.respawn
+        self.from_x, self.from_y = self.respawn
+        self.to_x, self.to_y = self.respawn

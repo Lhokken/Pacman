@@ -28,8 +28,7 @@ import sys
 
 
 class Direction():
-    """Possible directions."""
-
+    """Possible directions"""
     NORD = "nord"
     EST = "est"
     SUD = "sud"

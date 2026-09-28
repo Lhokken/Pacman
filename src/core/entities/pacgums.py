@@ -38,6 +38,7 @@ class PacgumsManagement:
         maze_width: int,
         maze_height: int,
         walkable_fn: Callable[[int, int], bool],
+        dict_point: dict[str, int]
     ) -> None:
         """Initialize the pacgum manager.
 
@@ -52,6 +53,7 @@ class PacgumsManagement:
         self.maze_height = maze_height
         self.walkable_fn = walkable_fn
         self.all_eaten: bool = False
+        self.dict_point: dict[str, int] = dict_point
 
         # ==============================================================
         # Public methods
@@ -79,6 +81,7 @@ class PacgumsManagement:
         Returns:
             Score earned (10 if eaten, 0 otherwise).
         """
+        turn_score: int = 0
         ghost_positions = [
             (ghosts[0].grid_x, ghosts[0].grid_y),
             (ghosts[1].grid_x, ghosts[1].grid_y),
@@ -134,6 +137,8 @@ class PacgumsManagement:
                 (0, self.maze_height - 1),
                 (self.maze_width - 1, self.maze_height - 1)]:
             GhostBase.frighten_ghosts(ghosts)
+            turn_score = self.dict_point["super_pacgum"]
+        turn_score = self.dict_point["pacgum"]
         if len(self.eaten) == (self.maze_width * self.maze_height) - 18:  # 18
             self.all_eaten = True
         logger.debug(
@@ -142,4 +147,5 @@ class PacgumsManagement:
             unit_y,
             len(self.eaten),
         )
-        return 10
+        print(len(self.eaten))
+        return turn_score

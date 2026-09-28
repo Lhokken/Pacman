@@ -124,7 +124,12 @@ class GamePage(Scene):
             self.player.to_y = spawn[1]
         self.ghosts = [Ghost(x, y) for x, y in self._ghost_spawn()]
         self.pacgums = PacgumManager(
-            self.maze_width, self.maze_height, self.is_walkable
+            self.maze_width,
+            self.maze_height,
+            self.is_walkable,
+            {"pacgum": self.app.config.points_per_pacgum,
+                "super_pacgum": self.app.config.points_per_super_pacgum,
+                "ghost": self.config.points_per_ghost}
         )
         if level == 0:
             self.score = 0
@@ -170,7 +175,6 @@ class GamePage(Scene):
     # owns this match, including changes made while the match is paused.
 
     def apply_cheats(self, cheats: dict[str, bool]) -> None:
-        """Fa TODO: Docstring."""
         self.player.cheat_sync(cheats)
 
     def handle_events(self) -> None:
@@ -204,13 +208,17 @@ class GamePage(Scene):
 
     # UPDATE GHOST -----------------------------------------------------------
     def update(self) -> None:
-        """Update the game state for the current frame.
+        """Aggiorna lo stato della partita per il frame corrente.
 
-        Synchronize visual ghosts with the positions calculated by the
-        core, delegate the logic update to the player, and update the
-        side panel if the score has changed.
+        TODO: inglese
+        Sincronizza i ghost visivi sulle posizioni calcolate dal core,
+        delega al giocatore l'update logico e, se il punteggio è
+        cambiato, aggiorna il pannello laterale.
         """
         # self._sync_ghosts_from_player()
+
+        # print(self.app.config.levels)
+
         score_gain = self.player.update(
             self.ghosts, self.pacgums, self.player
         )
@@ -224,12 +232,16 @@ class GamePage(Scene):
         self._frame += 1
 
     def next_level(self) -> None:
-        """Fa. TODO: DOCSTRING."""
         self.config.seed += 17
         self.player.maze = self._generate_maze()
         self.maze = self.player.maze
         self.pacgums = PacgumManager(
-            self.maze_width, self.maze_height, self.is_walkable
+            self.maze_width,
+            self.maze_height,
+            self.is_walkable,
+            {"pacgum": self.app.config.points_per_pacgum,
+                "super_pacgum": self.app.config.points_per_super_pacgum,
+                "ghost": self.config.points_per_ghost}
         )
         self.maze_renderer = MazeRenderer(self.maze, self.assets)
         for ghost in self.ghosts:

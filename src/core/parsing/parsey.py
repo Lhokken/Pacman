@@ -256,7 +256,6 @@ class GameConfig:
                     e,
                 )
                 levels.append(LevelConfig.from_dict({}))
-
         return levels
 
     @classmethod
