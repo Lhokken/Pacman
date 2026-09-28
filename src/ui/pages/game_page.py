@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+# from typing import TYPE_CHECKING
 
 import pygame
 from pygame.surface import Surface
@@ -38,12 +38,12 @@ from ..renderers.entity_renderer import EntityRenderer
 
 from ..components.hud import HUD
 from ...core.timer import Timer
-from ...core.entities.ghost import GhostBase as Ghost
+from ...core.entities.ghost import GhostBase as Ghost, GhostState
 from ...core.entities.pacman import PacmanPlayer as Player
 from ...core.entities.pacgums import PacgumsManagement as PacgumManager
 
-if TYPE_CHECKING:
-    from ..app import GameApp
+# if TYPE_CHECKING:
+#     from ..app import GameApp
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class GamePage(Scene):
     # -------------------------------------------------------------
     DEFAULT_LEVEL_DURATION_S = 180.0
 
-    def __init__(self, app: GameApp, level: int=0) -> None:
+    def __init__(self, app: GameApp, level: int = 0) -> None:
         """Inizializza la scena di gioco.
 
         Args:
@@ -169,6 +169,10 @@ class GamePage(Scene):
     # It must forward the complete cheat state to the core instance that
     # owns this match, including changes made while the match is paused.
 
+    def apply_cheats(self, cheats: dict[str, bool]) -> None:
+        """Fa TODO: Docstring."""
+        self.player.cheat_sync(cheats)
+
     def handle_events(self) -> None:
         """Handle game scene input events.
 
@@ -200,12 +204,11 @@ class GamePage(Scene):
 
     # UPDATE GHOST -----------------------------------------------------------
     def update(self) -> None:
-        """Aggiorna lo stato della partita per il frame corrente.
+        """Update the game state for the current frame.
 
-        TODO: inglese
-        Sincronizza i ghost visivi sulle posizioni calcolate dal core,
-        delega al giocatore l'update logico e, se il punteggio è
-        cambiato, aggiorna il pannello laterale.
+        Synchronize visual ghosts with the positions calculated by the
+        core, delegate the logic update to the player, and update the
+        side panel if the score has changed.
         """
         # self._sync_ghosts_from_player()
         score_gain = self.player.update(
@@ -216,11 +219,12 @@ class GamePage(Scene):
         if score_gain:
             self.score += score_gain
             self.panel_manager.update_score(self.score)
-        if self.pacgums.next_level is True:
+        if self.pacgums.all_eaten is True:
             self.next_level()
         self._frame += 1
 
     def next_level(self) -> None:
+        """Fa. TODO: DOCSTRING."""
         self.config.seed += 17
         self.player.maze = self._generate_maze()
         self.maze = self.player.maze
@@ -230,7 +234,11 @@ class GamePage(Scene):
         self.maze_renderer = MazeRenderer(self.maze, self.assets)
         for ghost in self.ghosts:
             ghost.grid_y, ghost.grid_x = ghost.corner
+            ghost.state = GhostState.NORMAL
+            ghost.set_timer = ghost.set_timer
         self.current_level += 1
+        self.player.grid_x, self.player.grid_y = self.player.respawn
+        self.player.level = self.current_level
 
     def on_resize(self, width: int, height: int) -> None:
         """Ricalcola layout e aggiorna i manager senza ricrearli.

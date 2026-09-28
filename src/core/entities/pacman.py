@@ -7,7 +7,6 @@ of time progression.
 """
 
 from __future__ import annotations
-from random import randint
 import logging
 import pygame
 from src.core.entities.ghost import GhostBase, GhostState
@@ -104,7 +103,8 @@ class PacmanPlayer:
         self.maze = maze
         self.maze_height = len(maze)
         self.maze_width = len(maze[0]) if maze else 0
-        self.ghosts_positions: list[tuple[int, int]] = []
+        # self.ghosts_positions: list[tuple[int, int]] = []
+        self.level: int = 0
 
     # Public methods -------------------------------------------------------
     # ======================================================================
@@ -112,12 +112,12 @@ class PacmanPlayer:
     # ======================================================================
 
     @classmethod
-    def cheat_sync(cls, parameter: dict[str, str]) -> None:
+    def cheat_sync(cls, parameter: dict[str, bool]) -> None:
         """Fa TODO: docstring."""
         for key, value in parameter.items():
-            if value == "OFF":
+            if value is False:
                 cls.CHEAT_DATA[key] = False
-            elif value == "ON":
+            elif value is True:
                 cls.CHEAT_DATA[key] = True
 
     @classmethod
@@ -209,7 +209,7 @@ class PacmanPlayer:
             )
             if elapsed_time >= self.MOVE_DURATION_MS:
                 # player_position = (self.grid_y, self.grid_x)
-                if self.debug is True:
+                if self.CHEAT_DATA["data_debug"] is True:
                     print(
                         f"Pacman pos: {player_position} lives: {self.lives}"
                         )
@@ -220,11 +220,11 @@ class PacmanPlayer:
                         self.maze,
                         self.maze_height,
                         self.maze_width,
-                        rand=30,
-                        debug=self.debug
+                        rand=(50 + (self.level * 3)),
+                        debug=self.CHEAT_DATA["data_debug"]
                         )
-                    self.ghosts_positions = [
-                        (g.grid_y, g.grid_x) for g in ghosts]
+                    # self.ghosts_positions = [
+                    #     (g.grid_y, g.grid_x) for g in ghosts]
                 self.is_moving = False
                 self.move_started_ms = 0
                 score_gain = pacgums.try_to_eat(
@@ -312,13 +312,11 @@ class PacmanPlayer:
 
     def pacman_respawn(self, ghosts: list[GhostBase]) -> None:
         """Fa TODO: docstring."""
-        y: int = 0
-        x: int = 0
         for i, _ in enumerate(ghosts):
             while GhostBase.get_distance(
-                (ghosts[i].grid_y, ghosts[i].grid_x),
-                self.respawn
-                ) < 7 or len(set(self.ghosts_places(ghosts))) != 4:
+                    (ghosts[i].grid_y, ghosts[i].grid_x),
+                    self.respawn) < 7 or \
+                        len(set(self.ghosts_places(ghosts))) != 4:
                 (ghosts[i].grid_y, ghosts[i].grid_x) = GhostBase.next_step(
                     ghosts[i].grid_y,
                     ghosts[i].grid_x,
@@ -327,20 +325,15 @@ class PacmanPlayer:
                     self.maze_height
                 )
 
-    def ghosts_places(self, ghosts: list[GhostBase]) -> list[tuple[int ,int]]:
-        ghosts_list: list[tuple[int ,int]] = []
+    def ghosts_places(self, ghosts: list[GhostBase]) -> list[tuple[int, int]]:
+        ghosts_list: list[tuple[int, int]] = []
         for ghost in ghosts:
             ghosts_list.append((ghost.grid_y, ghost.grid_x))
         return ghosts_list
 
-
     def life_loss(self) -> None:
         """NOTE: life loss manager
         TODO: connect with game over page"""
-        # ghosts[0].grid_x, ghosts[0].grid_y = (7, 7)
-        # ghosts[1].grid_x, ghosts[1].grid_y = (15, 7)
-        # ghosts[2].grid_x, ghosts[2].grid_y = (7, 15)
-        # ghosts[3].grid_x, ghosts[3].grid_y = (15, 15)
         self.lives -= 1
         self.grid_x = self.respawn[0]
         self.grid_y = self.respawn[1]

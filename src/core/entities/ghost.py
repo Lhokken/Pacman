@@ -28,7 +28,8 @@ import sys
 
 
 class Direction():
-    """Possible directions"""
+    """Possible directions."""
+
     NORD = "nord"
     EST = "est"
     SUD = "sud"
@@ -85,12 +86,10 @@ class GhostBase:
             debug: bool
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
-        ghost=ghosts[0]
+        ghost = ghosts[0]
         gh_places = cls.ghost_check(ghosts[1], ghosts[2], ghosts[3])
         if not hasattr(ghost, "name"):
             ghost.name = "Blinky"
-        if debug is True:
-            cls.debug_ghost(ghost)
         row, col = (ghost.grid_y, ghost.grid_x)
         if ghost.state == GhostState.NORMAL:
             row, col, = cls.hunting(
@@ -105,6 +104,8 @@ class GhostBase:
             (row, col) = cls.next_step(row, col, maze, width, height)
         ghost.grid_y = row
         ghost.grid_x = col
+        if debug is True:
+            cls.debug_ghost(ghost)
         cls.get_direction(ghost, row, col)
 
     @classmethod  # nord est
@@ -119,12 +120,10 @@ class GhostBase:
             debug: bool
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
-        ghost=ghosts[1]
+        ghost = ghosts[1]
         gh_places = cls.ghost_check(ghosts[0], ghosts[2], ghosts[3])
         if not hasattr(ghost, "name"):
             ghost.name = "Clyde"
-        if debug is True:
-            cls.debug_ghost(ghost)
         row, col = (ghost.grid_y, ghost.grid_x)
         if ghost.state == GhostState.NORMAL:
             row, col, = cls.hunting(
@@ -139,6 +138,8 @@ class GhostBase:
             (row, col) = cls.next_step(row, col, maze, width, height)
         ghost.grid_y = row
         ghost.grid_x = col
+        if debug is True:
+            cls.debug_ghost(ghost)
         cls.get_direction(ghost, row, col)
 
     @classmethod  # sud ovest
@@ -153,12 +154,10 @@ class GhostBase:
             debug: bool
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
-        ghost=ghosts[2]
+        ghost = ghosts[2]
         gh_places = cls.ghost_check(ghosts[0], ghosts[1], ghosts[3])
         if not hasattr(ghost, "name"):
             ghost.name = "Inky"
-        if debug is True:
-            cls.debug_ghost(ghost)
         row, col = (ghost.grid_y, ghost.grid_x)
         if ghost.state == GhostState.NORMAL:
             row, col, = cls.hunting(
@@ -173,6 +172,8 @@ class GhostBase:
             (row, col) = cls.next_step(row, col, maze, width, height)
         ghost.grid_y = row
         ghost.grid_x = col
+        if debug is True:
+            cls.debug_ghost(ghost)
         cls.get_direction(ghost, row, col)
 
     @classmethod  # sud est
@@ -187,12 +188,10 @@ class GhostBase:
             debug: bool
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
-        ghost=ghosts[3]
+        ghost = ghosts[3]
         gh_places = cls.ghost_check(ghosts[0], ghosts[1], ghosts[2])
         if not hasattr(ghost, "name"):
             ghost.name = "Pinky"
-        if debug is True:
-            cls.debug_ghost(ghost)
         row, col = (ghost.grid_y, ghost.grid_x)
         if ghost.state == GhostState.NORMAL:
             row, col, = cls.hunting(
@@ -207,6 +206,8 @@ class GhostBase:
             (row, col) = cls.next_step(row, col, maze, width, height)
         ghost.grid_y = row
         ghost.grid_x = col
+        if debug is True:
+            cls.debug_ghost(ghost)
         cls.get_direction(ghost, row, col)
 
     @classmethod
@@ -223,7 +224,7 @@ class GhostBase:
             (ghost1.grid_y, ghost1.grid_x),
             (ghost2.grid_y, ghost2.grid_x),
             (ghost3.grid_y, ghost3.grid_x)
-        )                  
+        )
 
     @classmethod
     def debug_ghost(cls, ghost: GhostBase) -> None:
@@ -247,6 +248,7 @@ class GhostBase:
          to its corner"""
         if ghost.corner == (row, col):
             ghost.state = GhostState.NORMAL
+            ghost.timer = ghost.set_timer
         else:
             result = cls.bfs(maze, ghost.corner, (row, col))
             if isinstance(result, tuple):

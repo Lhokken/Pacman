@@ -46,5 +46,7 @@
 | 2026-09-24 | *fedegugl* | **END - UI screen end game** Grafica allineata e conforme file directory src/ui/pages/end_screen.py - logic pending |
 | 2026-09-24 | *fedegugl* | **CORE** Recuperata logica del flash del ghost - *UI RISOLTA* Lasciati commeni tecnici per *CORE* - logic pending|
 | 2026-09-25 | *fedegugl* | ~~**UI STATO CLOSED**  Allinemento finale della UI Con logica generale - logic pending~~ **RIUNIONE END WEEK** - Discussione su come procedere nei prossimi giorni. |
+| 2026-09-26 | *gcerrete* | **next level implementato** Pacman inizia al centro al passagio di livello. passaggio livello successivo, gestione pacman, ghost, pacgum, maze. Risolto respawn e sovrapposizione ghosts. Gestita grafica perdita lives. Connessa cheat page a game_page e pacman
+| 2026-09-26 | *gcerrete* | **DECISIONE** pacman dovrebbe tornare al centro del labirinto secondo subject, al momento appare randomicamente lontano dai fantasmi - *REFERENCE* : Chapter VI, Game specifications. VI.2 Player page 12 |
 | 2026-09-28 | *fedegugl* | **UI STATO CLOSED**  Allinemento finale della UI Con logica generale - logic pending | 
-| 2026-09-nn | *gcerrete* | **DECISIONE** pacman dovrebbe tornare al centro del labirinto secondo subject, al momento appare randomicamente lontano dai fantasmi - *REFERENCE* : Chapter VI, Game specifications. VI.2 Player page 12 |
+| 2026-09-28 | *fedegugl* | **BUG RISOLTO** Adesso il cheat funziona da entrambe le parti - main menu e pause menu| 

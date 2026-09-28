@@ -213,7 +213,9 @@ class EntityRenderer:
 
         half = tile_size // 2
         for info in ghost_infos:
-            img = self._pick_ghost_frame(info, frightened_flash)
+            img = (
+                self._pick_ghost_frame(info, frightened_flash)
+            )
             if img is None:
                 continue
             cx = (
@@ -278,10 +280,10 @@ class EntityRenderer:
 
     # ------------------------------------------------------------------
     def _frame_idx(self, info: dict, n_frames: int) -> int:
-        """Sceglie l'indice del frame da mostrare.
+        """Select the index of the frame to display.
 
-        - Se il ghost si muove: il progresso 0..1 scandisce i frame.
-        - Se è fermo: idle loop basato sul tempo reale (monotonic).
+        - If the ghost is moving: the 0/1 progress value drives the frames.
+        - If it is stationary: an idle loop based on real time (monotonic).
         """
         if n_frames <= 1:
             return 0
