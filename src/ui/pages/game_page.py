@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-# from typing import TYPE_CHECKING
+from time import sleep
 
 import pygame
 from pygame.surface import Surface
@@ -33,6 +33,7 @@ from ..app import GameApp
 
 from ..layout.game_page_layout import GamePageLayout, GamePageMetrics
 
+from .end_screen import GameOverPage, VictoryPage
 from ..renderers.maze_renderer import MazeRenderer
 from ..renderers.entity_renderer import EntityRenderer
 
@@ -42,8 +43,6 @@ from ...core.entities.ghost import GhostBase as Ghost, GhostState
 from ...core.entities.pacman import PacmanPlayer as Player
 from ...core.entities.pacgums import PacgumsManagement as PacgumManager
 
-# if TYPE_CHECKING:
-#     from ..app import GameApp
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +89,13 @@ class GamePage(Scene):
             # --------------------------------------------------------
             self.maze_width = self.config.levels[level].width
             self.maze_height = self.config.levels[level].height
+            self.maze_dim = (self.maze_height, self.maze_width)
+            self.maze_corners = [
+                    (0, 0),
+                    (0, self.maze_height - 1),
+                    (self.maze_width - 1, 0),
+                    (self.maze_width - 1, self.maze_height - 1),
+                ]
             # --------------------------------------------------------
             #   LAYOUT
             # --------------------------------------------------------
@@ -115,22 +121,30 @@ class GamePage(Scene):
         spawn = Player.find_spawn(self.maze)
         if level == 0:
             self.player = Player(spawn[0], spawn[1], self.maze)
+            self.current_level: int = 0
+            self.level_start_reset = 7
+            self.level_start: int = 0
+            self.player.maze_dim = self.maze_dim
+            self.player.maze_corners = self.maze_corners
         else:
-            self.player.grid_x = spawn[0]
-            self.player.grid_y = spawn[1]
-            self.player.from_x = spawn[0]
-            self.player.from_y = spawn[1]
-            self.player.to_x = spawn[0]
-            self.player.to_y = spawn[1]
+            self.player.p_col = spawn[1]
+            self.player.p_row = spawn[0]
+            self.player.from_col = spawn[1]
+            self.player.from_row = spawn[0]
+            self.player.to_col = spawn[1]
+            self.player.to_row = spawn[0]
         self.ghosts = [Ghost(x, y) for x, y in self._ghost_spawn()]
+        for ghost in self.ghosts:
+            ghost.maze = self.maze
+            ghost.maze_dim = self.maze_dim
         self.pacgums = PacgumManager(
-            self.maze_width,
-            self.maze_height,
+            self.maze_dim,
             self.is_walkable,
             {"pacgum": self.app.config.points_per_pacgum,
                 "super_pacgum": self.app.config.points_per_super_pacgum,
                 "ghost": self.config.points_per_ghost}
         )
+        self.pacgums.corners = self.maze_corners
         if level == 0:
             self.score = 0
         # --------------------------------------------------------
@@ -159,7 +173,6 @@ class GamePage(Scene):
         #   Adapter ghost
         # --------------------------------------------------------
         self._frame = 0
-        self.current_level: int = 0
 
         # TODO(core-integration): Keep the live match/core object here when
         # the game orchestration refactor provides one. `apply_cheats()`
@@ -170,11 +183,9 @@ class GamePage(Scene):
     # ======================================================================
     #   Life cycle
     # ======================================================================
-    # TODO(core-integration): Add `apply_cheats(cheats: dict[str, bool])`.
-    # It must forward the complete cheat state to the core instance that
-    # owns this match, including changes made while the match is paused.
 
     def apply_cheats(self, cheats: dict[str, bool]) -> None:
+        """Insert given data in player argument."""
         self.player.cheat_sync(cheats)
 
     def handle_events(self) -> None:
@@ -196,34 +207,46 @@ class GamePage(Scene):
                     return
                 self.player.handle_event(event)
 
-    # PAUSE ------------------------------------------------------------------
     def on_pause(self) -> None:
-        """Mette in pausa il timer di livello."""
+        """Pauses the level timer."""
         self.level_timer.pause()
 
-    # RESUME -----------------------------------------------------------------
     def on_resume(self) -> None:
-        """Riprende il timer di livello."""
+        """Resume timer when you push resumes button."""
         self.level_timer.resume()
 
-    # UPDATE GHOST -----------------------------------------------------------
     def update(self) -> None:
-        """Aggiorna lo stato della partita per il frame corrente.
+        """Update the game state for the current frame.
 
-        TODO: inglese
-        Sincronizza i ghost visivi sulle posizioni calcolate dal core,
-        delega al giocatore l'update logico e, se il punteggio è
-        cambiato, aggiorna il pannello laterale.
+        Synchronize visual ghosts with the positions calculated by the
+        core, delegate the logic update to the player, and update the
+        side panel if the score has changed.
         """
-        # self._sync_ghosts_from_player()
+        # UPDATE DEAD_STATUS -----------------------------------------
+        if self.current_level >= 10:
+            self.app.switch_scene(VictoryPage(self.app, self.score))
+        if self.player.lives <= 0 or self.level_timer.remaining <= 0:
+            i: float = 0.1
+            while i < 3:
+                sleep(i)
+                print("\a")
+                i = i * 1.5
+            # TODO: LOGIC pending - Raccolta dati reali del user
+            self.app.switch_scene(GameOverPage(self.app, score=123))
 
-        # print(self.app.config.levels)
+        # CHEATING - extra lifes -------------------------------------
+        if self.player.CHEAT_DATA["extra_lives"] is True:
+            self.player.lives += 2
+            self.player.CHEAT_DATA["extra_lives"] = False
+            if self.player.lives > 3:
+                self.player.lives = 3
 
+        while self.level_start > 0:
+            self.level_notifier()
         score_gain = self.player.update(
             self.ghosts, self.pacgums, self.player
         )
         self.panel_manager.update_lives(self.player.lives)
-        # self.panel_manager
         if score_gain:
             self.score += score_gain
             self.panel_manager.update_score(self.score)
@@ -231,13 +254,28 @@ class GamePage(Scene):
             self.next_level()
         self._frame += 1
 
+    def level_notifier(self) -> None:
+        """Play an audio notification for Pac-Man life loss.
+
+        When a Pac-Man life is lost, the user receives an audio
+        notification.
+        """
+        print("\a")
+        sleep(self.level_start / 20)
+        self.level_start = int(self.level_start)
+        self.level_start -= 1
+
     def next_level(self) -> None:
+        """Set all data in order to begin a new game level.
+
+        This occurs after eating all pacgums, pacman lives and score
+        remain unchanged
+        """
         self.config.seed += 17
         self.player.maze = self._generate_maze()
         self.maze = self.player.maze
         self.pacgums = PacgumManager(
-            self.maze_width,
-            self.maze_height,
+            self.maze_dim,
             self.is_walkable,
             {"pacgum": self.app.config.points_per_pacgum,
                 "super_pacgum": self.app.config.points_per_super_pacgum,
@@ -245,20 +283,23 @@ class GamePage(Scene):
         )
         self.maze_renderer = MazeRenderer(self.maze, self.assets)
         for ghost in self.ghosts:
-            ghost.grid_y, ghost.grid_x = ghost.corner
+            ghost.g_row, ghost.g_col = ghost.corner
             ghost.state = GhostState.NORMAL
             ghost.set_timer = ghost.set_timer
         self.current_level += 1
-        self.player.grid_x, self.player.grid_y = self.player.respawn
+        self.player.p_row, self.player.p_col = \
+            self.player.from_row, self.player.from_col = \
+            self.player.to_row, self.player.to_col = self.player.respawn
         self.player.level = self.current_level
+        self.level_timer.reset(self.DEFAULT_LEVEL_DURATION_S)
+        self.level_start = self.level_start_reset
 
     def on_resize(self, width: int, height: int) -> None:
-        """Ricalcola layout e aggiorna i manager senza ricrearli.
+        """Recalculate layout and update managers without recreating them.
 
-        TODO: tradurre in inglese
         Args:
-            new_width : Nuova larghezza della finestra in px.
-            new_height: Nuova altezza della finestra in px.
+            new_width : New window width in px.
+            new_height: New window height in px.
         """
         new_width = width
         new_height = height
@@ -272,18 +313,17 @@ class GamePage(Scene):
             self.tile_size = new_tile
             self.assets.set_tile_size(new_tile)
         # --------------------------------------------------------------
-        #   Pannellis
+        #   Pannelli
         # --------------------------------------------------------------
         # I pannelli si riposizionano con il nuovo layout, senza
         # perdere lo stato (score/lives correnti restano).
         self.panel_manager.relayout(self.metrics.panel_layout, new_tile)
 
     def draw(self, screen: Surface) -> None:
-        """Disegna la scena delegando ai renderer.
+        """Draw the scene by delegating to the renderers.
 
-        TODO: tradurre in inglese
         Args:
-            screen: Surface di destinazione.
+            screen: Destination surface.
         """
         screen.fill((20, 20, 30))
 
@@ -325,12 +365,19 @@ class GamePage(Scene):
         # ------------------------------------------------------------
         # 6) PACGUM
         # ------------------------------------------------------------
-        ghost_positions = [(g.grid_x, g.grid_y) for g in self.ghosts]
+        ghost_positions = [(g.g_col, g.g_row) for g in self.ghosts]
         self.entity_renderer.draw(
-            screen, ox, oy, self.tile_size,
-            player_center, ghost_positions,
-            self.maze, self.pacgums.eaten,
-            self.player.is_moving, player_progress, self.player.direction
+            screen,
+            ox,
+            oy,
+            self.tile_size,
+            player_center,
+            ghost_positions,
+            self.maze,
+            self.pacgums.eaten,
+            self.player.is_moving,
+            player_progress,
+            self.player.direction
         )
 
     # ==================================================================
@@ -358,8 +405,8 @@ class GamePage(Scene):
         half = tile // 2
 
         if not self.player.is_moving:
-            cx = origin_x + self.player.grid_x * tile + half
-            cy = origin_y + self.player.grid_y * tile + half
+            cx = origin_x + self.player.p_col * tile + half
+            cy = origin_y + self.player.p_row * tile + half
             return (cx, cy), 0.0
 
         elapsed = (
@@ -369,11 +416,11 @@ class GamePage(Scene):
             min(elapsed / self.player.MOVE_DURATION_MS, 1.0)
         )
 
-        from_cx = origin_x + self.player.from_x * tile + half
-        from_cy = origin_y + self.player.from_y * tile + half
+        from_cx = origin_x + self.player.from_col * tile + half
+        from_cy = origin_y + self.player.from_row * tile + half
 
-        to_cx = origin_x + self.player.to_x * tile + half
-        to_cy = origin_y + self.player.to_y * tile + half
+        to_cx = origin_x + self.player.to_col * tile + half
+        to_cy = origin_y + self.player.to_row * tile + half
 
         cx = int(from_cx + (to_cx - from_cx) * progress)
         cy = int(from_cy + (to_cy - from_cy) * progress)
@@ -391,12 +438,13 @@ class GamePage(Scene):
             `True` if the power timer is running low and the current
             frame is in the "off" phase of the flashing cycle.
         """
-        power_timer = getattr(self.player, "power_timer", 0)
-        return (
-            power_timer > 0
-            and power_timer < 120
-            and (power_timer // 10) % 2 == 0
-        )
+        return self.ghosts[0].flashing
+        # power_timer = getattr(self.player, "power_timer", 0)
+        # return (
+        #     power_timer > 0
+        #     and power_timer < 120
+        #     and (power_timer // 10) % 2 == 0
+        # )
 
     def _draw_too_small_hint(self, screen: Surface) -> None:
         """Mostra un messaggio centrale se la finestra è troppo piccola.
@@ -467,21 +515,7 @@ class GamePage(Scene):
     #   Helper methods
     # ======================================================================
     # def _sync_ghosts_from_player(self) -> None:
-    #     # NOTE: RIDONDANTE
-    #     """Copy the positions calculated by the player to the UI ghosts.
-
-    #     `player.ghosts_positions` is populated by the core during
-    #     `player.update()`. Here, we read it and apply it to the
-    #     visual `Ghost` objects. On the first frame, the list is empty:
-    #     `zip` on an empty list is a no-op.
-    #     """
-    #     positions = getattr(self.player, "ghosts_positions", None)
-    #     if not positions:
-    #         return
-    #     for ghost, (gy, gx) in zip(self.ghosts, positions):
-    #         ghost.grid_y = gy
-    #         ghost.grid_x = gx
-
+    #     # NOTE: RIDONDANTE - RISOLTO
     def _build_ghost_infos(self) -> list[dict[str, object]]:
         """Construct ghost info for `EntityRenderer.draw_ghosts`.
 
@@ -490,7 +524,7 @@ class GamePage(Scene):
 
         Sources:
 
-            - `x`, `y`: `ghost.grid_x`, `ghost.grid_y` (in cells).
+            - `x`, `y`: `ghost.p_col`, `ghost.p_row` (in cells).
             - `facing`: `ghost.direction` if populated by the core,
             otherwise `"right"`.
             - `moving`: `False` (the core does not expose this yet).
@@ -499,6 +533,11 @@ class GamePage(Scene):
 
         The idle animation (stationary ghosts that "pulse") is handled by
         the renderer using real-time data; no need to move them here.
+
+        TODO: Once the core exposes each ghost's movement endpoints and
+        progress, pass the interpolated cell coordinates here and populate
+        `moving`/`move_progress`. `draw_ghosts()` already accepts fractional
+        cell coordinates, so no renderer-side position interpolation is needed.
 
         Returns:
             A list of dictionaries, one per ghost, containing the keys
@@ -510,14 +549,13 @@ class GamePage(Scene):
             "inky",
             "clyde"
         )
-        # NOTE : Abbiamo lo spazio per lo state... SEMBRA non esserci nulla di
-        #        'rotto' in ui.
+
         infos: list[dict[str, object]] = []
         for ghost, name in zip(self.ghosts, names):
             infos.append({
                 "name": name,
-                "x": float(ghost.grid_x),
-                "y": float(ghost.grid_y),
+                "x": float(ghost.g_col),
+                "y": float(ghost.g_row),
                 "facing": getattr(ghost, "direction", None) or "right",
                 "moving": False,
                 "move_progress": 0.0,
@@ -528,15 +566,10 @@ class GamePage(Scene):
     def _ghost_spawn(self) -> list[tuple[int, int]]:
         """Return the initial spawn positions of the four ghosts.
 
-        The coordinates are expressed as `(x, y)` in cells and
+        The coordinates are expressed as `(int, int)` in cells and
         correspond to the four corners of the maze
 
         Returns:
-        A list of four `(x, y)` tuples.
+            A list of four `(int, int)` tuples.
         """
-        return [
-            (0, 0),
-            (0, self.maze_width - 1),
-            (self.maze_height - 1, 0),
-            (self.maze_width - 1, self.maze_height - 1),
-        ]
+        return self.maze_corners

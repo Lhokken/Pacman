@@ -166,7 +166,7 @@
 **Criteri di accettazione:**
 
 - [X] Super-pacgum nei 4 angoli
-- [ ] Eating rende i ghost edible per un tempo limitato
+- [X] Eating rende i ghost edible per un tempo limitato
 - [ ] Punti assegnati correttamente
 
 ### #18 — Scoring hook centrale [feature]
@@ -176,7 +176,7 @@
 **Criteri di accettazione:**
 
 - [ ] Un solo punto nel codice che aggiorna lo score (pacgum/super/ghost)
-- [ ] Score non decresce mai
+- [X] Score non decresce mai
 
 [GOAL] **Milestone settimana 2:** un livello è giocabile end-to-end (si può morire o vincere il livello).
 
@@ -232,7 +232,7 @@
 - [ ] Persistenza su file JSON
 - [ ] Top 10 con nome + punteggio
 - [ ] Nome: max 10 caratteri, alfanumerico + spazi
-- [ ] Score: intero non-negativo
+- [X] Score: intero non-negativo
 - [ ] Robusto a file mancante/corrotto (no crash)
 - [ ] Load a inizio partita, save a fine partita
 
@@ -246,7 +246,7 @@
 - [V] Livello 1 con seed fisso (42), successivi random
 - [V] Timer per livello (config `level_max_time`)
 - [ ] Comportamento a timeout definito (es. restart livello)
-- [ ] Score e vite mantenuti tra livelli
+- [V] Score e vite mantenuti tra livelli
 
 ### #26 — Cheat mode [feature]
 

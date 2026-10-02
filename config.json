@@ -12,8 +12,8 @@
     "levels": [
         {
             "level_num": 1,
-            "width": 21,
-            "height": 21,
+            "width": 19,
+            "height": 15,
             "mode_phases": [
                 {"mode": "scatter", "duration": 7},
                 {"mode": "chase", "duration": 20},

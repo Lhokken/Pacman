@@ -28,7 +28,8 @@ import sys
 
 
 class Direction():
-    """Possible directions"""
+    """Possible directions."""
+
     NORD = "nord"
     EST = "est"
     SUD = "sud"
@@ -47,8 +48,8 @@ class GhostBase:
     """It represents a ghost in the labyrinth.
 
     Attributes:
-        grid_x   : Current column.
-        grid_y   : Current row.
+        g_col   : Current column. x
+        g_row   : Current row. y
         direction: Current direction(None if stopped).
         speed    : Base speed (units of cells per second,
                    per hour constant and not used).
@@ -59,28 +60,30 @@ class GhostBase:
 
     def __init__(
             self,
-            start_x: int,
-            start_y: int,
+            g_col: int,
+            g_row: int,
             ) -> None:
         self.name: str                     # Ghost name
-        self.grid_x = start_x              # Current column
-        self.grid_y = start_y              # Current row
+        self.g_row = g_row                 # Current row
+        self.g_col = g_col                 # Current column
+        self.coord = (g_row, g_col)
         self.direction: str | None = None  # Current direction
         self.speed = 1.0                   # Base speed
         self.state = GhostState.NORMAL     # Default behavioral state
-        self.corner = (start_y, start_x)   # Corner cell for respawn
+        self.flashing: bool = False        # Used to show frightenind end
+        self.flashing_duration: int = 15
+        self.corner = (g_row, g_col)   # Corner cell for respawn
         self.ghosts: list[GhostBase]       # tuple[int, int] | bool = (0, 0)
         self.set_timer: int = 60
         self.timer: int = self.set_timer
+        self.maze: list[list[int]]
+        self.maze_dim: tuple[int, int]
 
     @classmethod  # nord ovest
     def blinky(
             cls,
             ghosts: list[GhostBase],
             player_pos: tuple[int, int],
-            maze: list[list[int]],
-            height: int,
-            width: int,
             rand: int,
             debug: bool
             ) -> None:
@@ -89,20 +92,21 @@ class GhostBase:
         gh_places = cls.ghost_check(ghosts[1], ghosts[2], ghosts[3])
         if not hasattr(ghost, "name"):
             ghost.name = "Blinky"
-        row, col = (ghost.grid_y, ghost.grid_x)
+        row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
             row, col, = cls.hunting(
-                maze, rand, player_pos, row, col, width, height)
+                ghost.maze, rand, player_pos, row, col, ghost.maze_dim)
         elif ghost.state == GhostState.FRIGHTENED:
             row, col = cls.get_flight_run(
-                (row, col), player_pos, width, height, maze, rand)
+                (row, col), player_pos, ghost.maze_dim, ghost.maze, rand)
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            row, col = cls.eaten_mod(ghost, maze, row, col)
+            row, col = cls.eaten_mod(ghost, ghost.maze, row, col)
         while (row, col) in gh_places:
-            (row, col) = cls.next_step(row, col, maze, width, height)
-        ghost.grid_y = row
-        ghost.grid_x = col
+            (row, col) = cls.next_step(
+                row, col, ghost.maze, ghost.maze_dim)
+        ghost.g_row = row
+        ghost.g_col = col
         if debug is True:
             cls.debug_ghost(ghost)
         cls.get_direction(ghost, row, col)
@@ -112,9 +116,6 @@ class GhostBase:
             cls,
             ghosts: list[GhostBase],
             player_pos: tuple[int, int],
-            maze: list[list[int]],
-            height: int,
-            width: int,
             rand: int,
             debug: bool
             ) -> None:
@@ -123,20 +124,21 @@ class GhostBase:
         gh_places = cls.ghost_check(ghosts[0], ghosts[2], ghosts[3])
         if not hasattr(ghost, "name"):
             ghost.name = "Clyde"
-        row, col = (ghost.grid_y, ghost.grid_x)
+        row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
             row, col, = cls.hunting(
-                maze, rand, player_pos, row, col, width, height)
+                ghost.maze, rand, player_pos, row, col, ghost.maze_dim)
         elif ghost.state == GhostState.FRIGHTENED:
             row, col = cls.get_flight_run(
-                (row, col), player_pos, width, height, maze, rand)
+                (row, col), player_pos, ghost.maze_dim, ghost.maze, rand)
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            row, col = cls.eaten_mod(ghost, maze, row, col)
+            row, col = cls.eaten_mod(ghost, ghost.maze, row, col)
         while (row, col) in gh_places:
-            (row, col) = cls.next_step(row, col, maze, width, height)
-        ghost.grid_y = row
-        ghost.grid_x = col
+            (row, col) = cls.next_step(
+                row, col, ghost.maze, ghost.maze_dim)
+        ghost.g_row = row
+        ghost.g_col = col
         if debug is True:
             cls.debug_ghost(ghost)
         cls.get_direction(ghost, row, col)
@@ -146,9 +148,6 @@ class GhostBase:
             cls,
             ghosts: list[GhostBase],
             player_pos: tuple[int, int],
-            maze: list[list[int]],
-            height: int,
-            width: int,
             rand: int,
             debug: bool
             ) -> None:
@@ -157,20 +156,21 @@ class GhostBase:
         gh_places = cls.ghost_check(ghosts[0], ghosts[1], ghosts[3])
         if not hasattr(ghost, "name"):
             ghost.name = "Inky"
-        row, col = (ghost.grid_y, ghost.grid_x)
+        row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
             row, col, = cls.hunting(
-                maze, rand, player_pos, row, col, width, height)
+                ghost.maze, rand, player_pos, row, col, ghost.maze_dim)
         elif ghost.state == GhostState.FRIGHTENED:
             row, col = cls.get_flight_run(
-                (row, col), player_pos, width, height, maze, rand)
+                (row, col), player_pos, ghost.maze_dim, ghost.maze, rand)
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            row, col = cls.eaten_mod(ghost, maze, row, col)
+            row, col = cls.eaten_mod(ghost, ghost.maze, row, col)
         while (row, col) in gh_places:
-            (row, col) = cls.next_step(row, col, maze, width, height)
-        ghost.grid_y = row
-        ghost.grid_x = col
+            (row, col) = cls.next_step(
+                row, col, ghost.maze, ghost.maze_dim)
+        ghost.g_row = row
+        ghost.g_col = col
         if debug is True:
             cls.debug_ghost(ghost)
         cls.get_direction(ghost, row, col)
@@ -180,9 +180,6 @@ class GhostBase:
             cls,
             ghosts: list[GhostBase],
             player_pos: tuple[int, int],
-            maze: list[list[int]],
-            height: int,
-            width: int,
             rand: int,
             debug: bool
             ) -> None:
@@ -191,20 +188,21 @@ class GhostBase:
         gh_places = cls.ghost_check(ghosts[0], ghosts[1], ghosts[2])
         if not hasattr(ghost, "name"):
             ghost.name = "Pinky"
-        row, col = (ghost.grid_y, ghost.grid_x)
+        row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
             row, col, = cls.hunting(
-                maze, rand, player_pos, row, col, width, height)
+                ghost.maze, rand, player_pos, row, col, ghost.maze_dim)
         elif ghost.state == GhostState.FRIGHTENED:
             row, col = cls.get_flight_run(
-                (row, col), player_pos, width, height, maze, rand)
+                (row, col), player_pos, ghost.maze_dim, ghost.maze, rand)
             cls.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            row, col = cls.eaten_mod(ghost, maze, row, col)
+            row, col = cls.eaten_mod(ghost, ghost.maze, row, col)
         while (row, col) in gh_places:
-            (row, col) = cls.next_step(row, col, maze, width, height)
-        ghost.grid_y = row
-        ghost.grid_x = col
+            (row, col) = cls.next_step(
+                row, col, ghost.maze, ghost.maze_dim)
+        ghost.g_row = row
+        ghost.g_col = col
         if debug is True:
             cls.debug_ghost(ghost)
         cls.get_direction(ghost, row, col)
@@ -219,10 +217,11 @@ class GhostBase:
             tuple[int, int],
             tuple[int, int]
             ]:
+        """Return a tuple of three tuple each with coordinates of one ghost"""
         return (
-            (ghost1.grid_y, ghost1.grid_x),
-            (ghost2.grid_y, ghost2.grid_x),
-            (ghost3.grid_y, ghost3.grid_x)
+            (ghost1.g_row, ghost1.g_col),
+            (ghost2.g_row, ghost2.g_col),
+            (ghost3.g_row, ghost3.g_col)
         )
 
     @classmethod
@@ -231,8 +230,8 @@ class GhostBase:
         print(
             ghost.state,
             ghost.name,
-            ghost.grid_y,
-            ghost.grid_x
+            ghost.g_row,
+            ghost.g_col
             )
 
     @classmethod
@@ -259,55 +258,52 @@ class GhostBase:
             cls,
             ghosts: list[GhostBase],
             player_pos: tuple[int, int],
-            maze: list[list[int]],
-            height: int,
-            width: int,
             rand: int,
             debug: bool
             ) -> None:
         """This method call each ghost"""
-        cls.blinky(ghosts, player_pos, maze, height, width, rand, debug)
-        cls.clyde(ghosts, player_pos, maze, height, width, rand, debug)
-        cls.inky(ghosts, player_pos, maze, height, width, rand, debug)
-        cls.pinky(ghosts, player_pos, maze, height, width, rand, debug)
+        cls.blinky(ghosts, player_pos, rand, debug)
+        cls.clyde(ghosts, player_pos, rand, debug)
+        cls.inky(ghosts, player_pos, rand, debug)
+        cls.pinky(ghosts, player_pos, rand, debug)
 
     @classmethod
     def get_neighbours(
-            cls, y: int, x: int, maze: list[list[int]]
+            cls, row: int, col: int, maze: list[list[int]]
             ) -> list[tuple[int, int]]:
         """This method return a list with possible path from
         current location."""
         result: list[tuple[int, int]] = []
-        if cls.wall_check(y, x, maze, Direction.NORD):
-            result.append((y - 1, x))
-        if cls.wall_check(y, x, maze, Direction.SUD):
-            result.append((y + 1, x))
-        if cls.wall_check(y, x, maze, Direction.OVEST):
-            result.append((y, x - 1))
-        if cls.wall_check(y, x, maze, Direction.EST):
-            result.append((y, x + 1))
+        if cls.wall_check(row, col, maze, Direction.NORD):
+            result.append((row - 1, col))
+        if cls.wall_check(row, col, maze, Direction.SUD):
+            result.append((row + 1, col))
+        if cls.wall_check(row, col, maze, Direction.OVEST):
+            result.append((row, col - 1))
+        if cls.wall_check(row, col, maze, Direction.EST):
+            result.append((row, col + 1))
         return result
 
     @classmethod
     def wall_check(
             cls,
-            y: int,
-            x: int,
+            row: int,
+            col: int,
             maze: list[list[int]],
             direction: str
             ) -> bool:
         """This method check if the direction is open or closed."""
         if direction == Direction.NORD:
-            if maze[y][x] not in (1, 3, 5, 7, 9, 11, 13):
+            if maze[row][col] not in (1, 3, 5, 7, 9, 11, 13):
                 return True
         elif direction == Direction.SUD:
-            if maze[y][x] not in (4, 5, 6, 7, 12, 13, 14):
+            if maze[row][col] not in (4, 5, 6, 7, 12, 13, 14):
                 return True
         elif direction == Direction.OVEST:
-            if maze[y][x] not in (8, 9, 10, 11, 12, 13, 14):
+            if maze[row][col] not in (8, 9, 10, 11, 12, 13, 14):
                 return True
         elif direction == Direction.EST:
-            if maze[y][x] not in (2, 3, 6, 7, 10, 11, 14):
+            if maze[row][col] not in (2, 3, 6, 7, 10, 11, 14):
                 return True
         return False
 
@@ -374,11 +370,10 @@ class GhostBase:
     @classmethod
     def next_step(
             cls,
-            y: int,
-            x: int,
+            row: int,
+            col: int,
             maze: list[list[int]],
-            width: int,
-            height: int
+            maze_dim: tuple[int, int]
             ) -> tuple[int, int]:
         """This method randomly determine a valid one step move."""
         directions = [
@@ -389,101 +384,102 @@ class GhostBase:
             ]
         while True:
             new_dir = directions[randint(0, 3)]
-            if new_dir == Direction.NORD and \
-                cls.wall_check(y, x, maze, new_dir) \
-                    and (y - 1) >= 0:
-                y -= 1
+            if (row - 1) >= 0 and \
+                new_dir == Direction.NORD and \
+                    cls.wall_check(row, col, maze, new_dir):
+                row -= 1
                 break
-            elif new_dir == Direction.SUD and \
-                cls.wall_check(y, x, maze, new_dir) \
-                    and (y + 1) < width:
-                y += 1
+            elif (row + 1) < maze_dim[0] and \
+                new_dir == Direction.SUD and \
+                    cls.wall_check(row, col, maze, new_dir):
+                row += 1
                 break
-            elif new_dir == Direction.OVEST and \
-                cls.wall_check(y, x, maze, new_dir) \
-                    and (x - 1) >= 0:
-                x -= 1
+            elif (col - 1) >= 0 and \
+                new_dir == Direction.OVEST and \
+                    cls.wall_check(row, col, maze, new_dir):
+                col -= 1
                 break
-            elif new_dir == Direction.EST and \
-                cls.wall_check(y, x, maze, new_dir) \
-                    and (x + 1) < height:
-                x += 1
+            elif (col + 1) < maze_dim[1] and \
+                new_dir == Direction.EST and \
+                    cls.wall_check(row, col, maze, new_dir):
+                col += 1
                 break
-        return (y, x)
+        return (row, col)
 
     @classmethod
     def get_flight_run(
             cls,
             ghost: tuple[int, int],
             player: tuple[int, int],
-            width: int,
-            height: int,
+            maze_dim: tuple[int, int],
             maze: list[list[int]],
             rand: int
             ) -> tuple[int, int]:
         """This method determine a place opposite to the player and return
         next valid step to run away from player. Used from ghost while
         frightened."""
-        y = ghost[0]
-        x = ghost[1]
+        row = ghost[0]
+        col = ghost[1]
         if randint(0, 100) > rand:
-            if player[0] > y:
-                y = max(y - 2, 0)
-            elif player[0] < y:
-                y = min(y + 2, width - 1)
+            if player[0] > row:
+                row = max(row - 2, 0)
+            elif player[0] < row:
+                row = min(row + 2, maze_dim[0] - 1)
 
-            if player[1] > x:
-                x = max(x - 2, 0)
-            elif player[1] < x:
-                x = min(x + 2, height - 1)
+            if player[1] > col:
+                col = max(col - 2, 0)
+            elif player[1] < col:
+                col = min(col + 2, maze_dim[1] - 1)
 
-            if maze[y][x] == 15:
+            if maze[row][col] == 15:
                 return ghost
-            esc = cls.bfs(maze, (y, x), ghost)
+            esc = cls.bfs(maze, (row, col), ghost)
             if isinstance(esc, tuple):
                 return esc
             else:
                 return ghost
         else:
-            y, x = cls.next_step(y, x, maze, width, height)
-            return (y, x)
+            row, col = cls.next_step(row, col, maze, maze_dim)
+            return (row, col)
 
     @classmethod
     def hunting(cls,
                 maze: list[list[int]],
                 rand: int,
                 player_pos: tuple[int, int],
-                y: int,
-                x: int,
-                width: int,
-                height: int
+                row: int,
+                col: int,
+                maze_dim: tuple[int, int]
                 ) -> tuple[int, int]:
         """Method used by ghosts to catch the player. There is a
         random parameter to variate ghosts movement, making it unpredictable.
         """
         result: tuple[int, int] | bool = False
         if randint(0, 100) > rand:
-            result = cls.bfs(maze, player_pos, (y, x))
+            result = cls.bfs(maze, player_pos, (row, col))
         if isinstance(result, tuple):
-            y = result[0]
-            x = result[1]
+            row = result[0]
+            col = result[1]
         else:
-            y, x = cls.next_step(y, x, maze, width, height)
-        return (y, x)
+            row, col = cls.next_step(row, col, maze, maze_dim)
+        return (row, col)
 
     @classmethod
     def ghost_timer(cls, ghost: GhostBase) -> None:
         """Method used to let ghosts turn back normal after set_timer."""
         ghost.timer -= 1
+        if ghost.timer <= ghost.flashing_duration:
+            ghost.flashing = True
         if ghost.timer <= 0:
             ghost.timer = ghost.set_timer
             ghost.state = GhostState.NORMAL
+            ghost.flashing = False
 
     @classmethod
     def get_direction(cls, ghost: GhostBase, y: int, x: int) -> None:
         """This method calculate and set ghosts movement direction."""
-        y_start = ghost.grid_y
-        x_start = ghost.grid_x
+        y_start = ghost.g_row
+        x_start = ghost.g_col
         if x_start - x == 1:
             ghost.direction = Direction.OVEST
         elif x_start - x == -1:
@@ -498,3 +494,4 @@ class GhostBase:
         """Simple method to set all ghosts to frightened."""
         for ghost in ghosts:
             ghost.state = GhostState.FRIGHTENED
+            ghost.timer = ghost.set_timer

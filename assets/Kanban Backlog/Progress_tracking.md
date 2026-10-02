@@ -45,7 +45,18 @@
 | 2026-09-24 | *fedegugl* | **END - mypy flake8** file directory  src/ui/pages - logic pending |
 | 2026-09-24 | *fedegugl* | **END - UI screen end game** Grafica allineata e conforme file directory src/ui/pages/end_screen.py - logic pending |
 | 2026-09-24 | *fedegugl* | **CORE** Recuperata logica del flash del ghost - *UI RISOLTA* Lasciati commeni tecnici per *CORE* - logic pending|
-| 2026-09-25 | *fedegugl* | ~~**UI STATO CLOSED**  Allinemento finale della UI Con logica generale - logic pending~~ **RIUNIONE END WEEK** - Discussione su come procedere nei prossimi giorni. |
+| 2026-09-25 | *fedegugl* | ~~**UI STATO CLOSED**  Allinemento finale della UI Con logica generale - logic pending~~ |
+| 2026-09-25 | *fedegugl* *gcerrete*| **RIUNIONE END WEEK** - Discussione su come procedere nei prossimi giorni. |
 | 2026-09-26 | *gcerrete* | **next level implementato** Pacman inizia al centro al passagio di livello. passaggio livello successivo, gestione pacman, ghost, pacgum, maze. Risolto respawn e sovrapposizione ghosts. Gestita grafica perdita lives. Connessa cheat page a game_page e pacman
-| 2026-09-28 | *fedegugl* | **UI STATO CLOSED**  Allinemento finale della UI Con logica generale - logic pending | 
-| 2026-09-nn | *gcerrete* | **DECISIONE** pacman dovrebbe tornare al centro del labirinto secondo subject, al momento appare randomicamente lontano dai fantasmi - *REFERENCE* : Chapter VI, Game specifications. VI.2 Player page 12 |
+| 2026-09-28 | *fedegugl* | **UI STATO CLOSED**  Allinemento finale della UI Con logica generale - logic pending |
+| 2026-09-29 | *fedegugl* | Testing della ui, nessun bug rilevato. Aggiustmenti e ripristino di pagine ui perse nel push nella repository| 
+| 2026-09-29 | *gcerrete* | Sound added for pacman death and next level. Debug implemented in settings. Extra lives setting implemented. flashing ghost implemented.
+Last life loss implemented, back to main menu. |
+| 2026-09-30 | *fedegugl* | Revisione docstring, colegamento della facciata statica del game over - logic pnding|
+| 2026-09-30 | *fedegugl* | Aggiustamenti in redering e completamento doctring|
+| 2026-09-29 | *fedegugl* *gcerrete* | **BUG CRITICO** : timer non si riavvia a nuovo livello. Timer bug solved. Victory page connected and funcioning. New pacman coordinates y->p_row x->p_col. Ghost coordinates changed in: x->g_col , y->g_row. **BUG CRITICO** Not squared maze crashes. |
+| 2026-10-01 | *fedegugl* | Completamento del rendering dei ghost - allineato con quello di pacman e documentato, logica di core da aggiornare al nuovo render - LOGIC pending|
+| 2026-10-01 | *fedegugl* | **BUG CRITICO** : pacgum e super pacgum non sono divisi, controllato cambiando di due colore estremamente diversi, vienne sempre usato il pacgum sprite|
+| 2026-10-01 | *fedegugl* *gcerrete* | **BUG CRITICO** : i fantasmi se in fear mode o mangiati non lasciano a pac man mangiare |
+| 2026-10-01 | *fedegugl* | **BUG CRITICO** : i super pacgum hanno un comportamento anomalo - se mangi un super pacgum hai dei secondi a dispoizione ma se ne mangi un altro mentre i fantasmi sono in fear mode il contatore dovrebbe ripartire da capo e darti i soliti secondi. (e.g mangi sp, 30 sec concessi, ne consumi 20, nei restati 10 sec mangi un altro sp riparti da 30 sec)|
+| 2026-10-01 | *gcerrete* | Modificato pacgums, pacman, game_page, ghost. Bug dimensioni scambiate risolto. Bug timer super pacgums risolto, il timer riparte anche mangiando una superpacgum mentre i ghosts sono in fear. Risolto Bug pacgum non mangiato mentre e sovrapposto ad un ghost in frighten o fear.

@@ -15,7 +15,7 @@ and to carry out the necessary checks before eating a pacgum.
 
 from typing import Callable
 import logging
-from src.core.entities.ghost import GhostBase
+from src.core.entities.ghost import GhostBase, GhostState
 
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.INFO)
@@ -35,8 +35,7 @@ class PacgumsManagement:
 
     def __init__(
         self,
-        maze_width: int,
-        maze_height: int,
+        maze_dim: tuple[int, int],
         walkable_fn: Callable[[int, int], bool],
         dict_point: dict[str, int]
     ) -> None:
@@ -49,11 +48,12 @@ class PacgumsManagement:
         """
         # Set of coordinates (x, y) of eaten pacgums
         self.eaten: set[tuple[int, int]] = set()
-        self.maze_width = maze_width
-        self.maze_height = maze_height
+        self.maze_width = maze_dim[1]
+        self.maze_height = maze_dim[0]
         self.walkable_fn = walkable_fn
         self.all_eaten: bool = False
         self.dict_point: dict[str, int] = dict_point
+        self.corners: list[tuple[int, int]]
 
         # ==============================================================
         # Public methods
@@ -82,12 +82,12 @@ class PacgumsManagement:
             Score earned (10 if eaten, 0 otherwise).
         """
         turn_score: int = 0
-        ghost_positions = [
-            (ghosts[0].grid_x, ghosts[0].grid_y),
-            (ghosts[1].grid_x, ghosts[1].grid_y),
-            (ghosts[2].grid_x, ghosts[2].grid_y),
-            (ghosts[3].grid_x, ghosts[3].grid_y)
-        ]
+        # ghost_positions = [
+        #     (ghosts[0].g_col, ghosts[0].g_row),
+        #     (ghosts[1].g_col, ghosts[1].g_row),
+        #     (ghosts[2].g_col, ghosts[2].g_row),
+        #     (ghosts[3].g_col, ghosts[3].g_row)
+        # ]
         # Check if the cell is within the maze limits --------------
         self.eaten
         if not (
@@ -120,26 +120,24 @@ class PacgumsManagement:
             return 0
 
         # Check if the cell is occupied by a ghost -----------------------
-        if (unit_x, unit_y) in ghost_positions:
-            logger.debug(
-                "Attempted to eat pacgum at cell occupied by ghost "
-                "(%d, %d)",
-                unit_x,
-                unit_y,
-            )
-            return 0
+        for ghost in ghosts:
+            if ghost.coord == (unit_x, unit_y):
+                if ghost.state is not GhostState.NORMAL:
+                    logger.debug(
+                        "Attempted to eat pacgum at cell occupied by ghost "
+                        "(%d, %d)",
+                        unit_x,
+                        unit_y,
+                    )
+                    return 0
 
         # If all checks passed, mark the pacgum as eaten ------------------
         self.eaten.add((unit_x, unit_y))
-        if (unit_x, unit_y) in [
-                (0, 0),
-                (self.maze_width - 1, 0),
-                (0, self.maze_height - 1),
-                (self.maze_width - 1, self.maze_height - 1)]:
+        if (unit_x, unit_y) in self.corners:
             GhostBase.frighten_ghosts(ghosts)
             turn_score = self.dict_point["super_pacgum"]
         turn_score = self.dict_point["pacgum"]
-        if len(self.eaten) == (self.maze_width * self.maze_height) - 18:  # 18
+        if len(self.eaten) == (self.maze_width * self.maze_height) - 18:
             self.all_eaten = True
         logger.debug(
             "Pacgum eaten at (%d, %d). Score increased: %d",
@@ -147,5 +145,4 @@ class PacgumsManagement:
             unit_y,
             len(self.eaten),
         )
-        print(len(self.eaten))
         return turn_score

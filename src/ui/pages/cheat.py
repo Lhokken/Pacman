@@ -22,8 +22,7 @@ from ..scene import Scene
 from ..components.button import Button
 from ..configUI.ui_config import FontRole
 from ..layout.cheat_layout import CheatLayout
-
-from ..pages.game_page import GamePage as GameCheat
+from ...core.entities.pacman import PacmanPlayer
 
 if TYPE_CHECKING:
     from ..app import GameApp
@@ -56,7 +55,7 @@ class CheatPage(Scene):
     extra_lives: bool = False
     increased_speed: bool = False
     # ----------------------------------------------------------------
-    #   Etichette
+    #   Etichette - Name and attribute
     # ----------------------------------------------------------------
     _TOGGLES: tuple[tuple[str, str], ...] = (
         (
@@ -97,14 +96,32 @@ class CheatPage(Scene):
         #   Reference the active match. Do NOT recreate it.
         # --------------------------------------------------------------
         self.game_page = game_page
-        # --------------------------------------------------------------
+
+        # TOOGLE CHAEAT-------------------------------------------------
+        # Crea un atributo di istanza non modifichi quello di classe
+        # NOTE: prima lo stato viveva sul `self` e andava perso a ogni
+        #       nuova istanza di page. settatr risolve questo.
+        for _, name in self._TOGGLES:
+            setattr(self, name, PacmanPlayer.CHEAT_DATA[name])
+
+        # -------------------------------------------------------------
         #   FONT
         # --------------------------------------------------------------
         # shared by Scenes. No local FontManager.
-        self.font_title = self.theme.font_config(FontRole.HEADING)
-        self.font_option = self.theme.font_config(FontRole.OPTION)
+        self.font_title = (
+            self.theme.font_config(
+                FontRole.HEADING
+            )
+        )
+        self.font_option = (
+            self.theme.font_config(
+                FontRole.OPTION
+            )
+        )
         self.font_option_selected = (
-            self.theme.font_config(FontRole.OPTION_SELECTED)
+            self.theme.font_config(
+                FontRole.OPTION_SELECTED
+            )
         )
 
         self.buttons: list[Button] = []
@@ -169,33 +186,21 @@ class CheatPage(Scene):
             )
 
     def _apply_cheats(self) -> None:
-        """Propagates the cheat state to the current match.
-
-        This page only owns the toggle controls. When opened from a live
-        match, it must forward the complete state through the existing
-        GamePage instance; GamePage will then delegate to the core.
-
-        The flow is:
-            GamePage -> PauseMenu -> CheatPage -> same GamePage -> core
-
-        No match exists when this page is opened from the main menu, so
-        there is nothing to update in that case.
-
-        TODO(core-integration): Replace the commented call below with the
-        GamePage adapter once `GamePage.apply_cheats()` exists. Pass boolean
-        values, not "ON"/"OFF" strings, and keep this page unaware of how
-        each cheat changes gameplay.
-        """
-        if self.game_page is None:
-            return
-        # Activate this adapter when GamePage exposes the core method.
-        cheat_applier = GameCheat(self.app)
-        cheat_applier.apply_cheats({
-            name: getattr(self, name) for _, name in self._TOGGLES
+        """Write the toggle states to the core."""
+        # ============================================================
+        # `PacmanPlayer.CHEAT_DATA` is a class attribute!!
+        # ============================================================
+        # an active game session is not required to write to it.
+        # The previous `game_page is None` check caused any changes
+        # made from the main menu, before starting the game—to be lost.
+        # ------------------------------------------------------------
+        # NOTE: keep the payload consistent with `CHEAT_DATA`.
+        # `cheat_sync` expects booleans, not "ON"/"OFF" strings.
+        # ------------------------------------------------------------
+        PacmanPlayer.cheat_sync({
+            name: bool(getattr(self, name))
+            for _, name in self._TOGGLES
         })
-        # self.game_page.apply_cheats({
-        #     name: getattr(self, name) for _, name in self._TOGGLES
-        # })
 
     # ================================================================
     #   Navigazione
@@ -281,13 +286,15 @@ class CheatPage(Scene):
             screen.get_width(), screen.get_height()
         )
         title = (
-              self.font_title.render("Cheats")
+              self.font_title.render("Settings")
         )
         # SCREEN ------------------------------------------
         screen.blit(
             title,
             title.get_rect(
-                center=(screen.get_width() // 2, title_y)
+                center=(
+                    screen.get_width() // 2, title_y
+                )
             ),
         )
         # BUTTON ------------------------------------------

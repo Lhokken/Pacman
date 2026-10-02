@@ -37,12 +37,12 @@ class PacmanPlayer:
     """Represents the player's state during the game.
 
     Attributes:
-        grid_x: Current column in the maze grid.
-        grid_y: Current row in the maze grid.
-        from_x: Starting column of the movement in progress.
-        from_y: Starting line of the movement in progress.
-        to_x  : Destination column of the movement in progress.
-        to_y  : Destination row of the movement in progress.
+        p_col: Current column in the maze grid.
+        p_row: Current row in the maze grid.
+        from_col: Starting column of the movement in progress.
+        from_row: Starting line of the movement in progress.
+        to_col  : Destination column of the movement in progress.
+        to_row  : Destination row of the movement in progress.
         queued_direction: Direction requested by the input ('up', 'down',
                       'left', 'right') waiting to be applied. Persistent:
                       remains active until overwritten by new input.
@@ -72,21 +72,21 @@ class PacmanPlayer:
         "increased_speed": False
     }
 
-    def __init__(self, state_x: int, state_y: int,
+    def __init__(self, row: int, col: int,
                  maze: list[list[int]]) -> None:
         """Initialize the player with a starting position.
 
         Args:
-            state_x: Starting column in the maze grid.
-            state_y: Starting row in the maze grid.
+            p_row : Starting row in the maze grid. y
+            p_col : Starting column in the maze grid. x
         """
-        self.respawn = (state_x, state_y)
-        self.grid_x = state_x
-        self.grid_y = state_y
-        self.from_x = state_x
-        self.from_y = state_y
-        self.to_x = state_x
-        self.to_y = state_y
+        self.respawn = (row, col)
+        self.p_row = row
+        self.p_col = col
+        self.from_row = row
+        self.from_col = col
+        self.to_row = row
+        self.to_col = col
         self.debug = False
         self.lives = self.INIT_DATA["Lives"]
         if self.CHEAT_DATA["extra_lives"] is True:
@@ -102,6 +102,10 @@ class PacmanPlayer:
         self.maze = maze
         self.maze_height = len(maze)
         self.maze_width = len(maze[0]) if maze else 0
+        self.maze_dim: tuple[int, int]
+        self.maze_corners: list[
+            tuple[int, int]
+            ]
         self.level: int = 0
 
     # Public methods -------------------------------------------------------
@@ -128,16 +132,16 @@ class PacmanPlayer:
         """Find a walkable cell close to the maze center."""
         maze_height = len(maze)
         maze_width = len(maze[0]) if maze else 0
-        center_x = maze_width // 2
-        center_y = maze_height // 2
-        for offset in range(1, maze_height - center_y):
-            y = center_y + offset
-            if maze[y][center_x] != 15:
-                return center_x, y
-        for offset in range(1, center_y + 1):
-            y = center_y - offset
-            if maze[y][center_x] != 15:
-                return center_x, y
+        center_col = maze_width // 2
+        center_row = maze_height // 2
+        for offset in range(1, maze_height - center_row):
+            row = center_row + offset
+            if maze[row][center_col] != 15:
+                return row, center_col
+        for offset in range(1, center_row + 1):
+            row = center_row - offset
+            if maze[row][center_col] != 15:
+                return row, center_col
         raise RuntimeError(
             "No walkable cell found near center for player spawn"
         )
@@ -200,42 +204,40 @@ class PacmanPlayer:
                pacman: PacmanPlayer) -> int:
         """Advance movement and eat a pacgum when a move is complete."""
         score_gain = 0
-        player_position = (pacman.grid_y, pacman.grid_x)
+        print(ghosts[0].timer)
+        if self.CHEAT_DATA["data_debug"] is True and len(pacgums.eaten) > 9:
+            pacgums.all_eaten = True
         if self.is_moving:
             elapsed_time = (
                 pygame.time.get_ticks() - self.move_started_ms
             )
             if elapsed_time >= self.MOVE_DURATION_MS:
-                # player_position = (self.grid_y, self.grid_x)
-                if self.CHEAT_DATA["data_debug"] is True:
-                    print(
-                        f"Pacman pos: {player_position} lives: {self.lives}"
-                        )
+                self.debug_print(pacman)
                 if self.CHEAT_DATA["ghost_freeze"] is False:
+                    # TODO: Ghost movement is currently advanced only when
+                    # Pacman completes a tile. Give ghosts their own timed
+                    # movement/update so their speed and interpolation do not
+                    # depend on Pacman's move duration.
                     GhostBase.team_ghost(
                         ghosts,
-                        player_position,
-                        self.maze,
-                        self.maze_height,
-                        self.maze_width,
+                        (pacman.p_row, pacman.p_col),
                         rand=(50 + (self.level * 3)),
                         debug=self.CHEAT_DATA["data_debug"]
                         )
-                    # self.ghosts_positions = [
-                    #     (g.grid_y, g.grid_x) for g in ghosts]
                 self.is_moving = False
                 self.move_started_ms = 0
                 score_gain = pacgums.try_to_eat(
                     ghosts,
-                    unit_x=self.grid_x,
-                    unit_y=self.grid_y,
+                    unit_x=self.p_col,
+                    unit_y=self.p_row,
                 )
                 for ghost in ghosts:
-                    if (ghost.grid_y, ghost.grid_x) in \
-                            [(self.grid_y, self.grid_x),
-                             (self.from_y, self.from_x)]:
+                    if (ghost.g_row, ghost.g_col) in \
+                            [(self.p_row, self.p_col),
+                             (self.from_row, self.from_col)]:
                         if ghost.state == GhostState.FRIGHTENED:
                             ghost.state = GhostState.EATEN
+                            score_gain += pacgums.dict_point["ghost"]
                         elif ghost.state == GhostState.EATEN:
                             pass
                         elif ghost.state == GhostState.NORMAL and \
@@ -243,18 +245,16 @@ class PacmanPlayer:
                             self.life_loss()
                             self.pacman_respawn(ghosts)
                 if score_gain > 0 and \
-                    player_position in [
+                    (pacman.p_row, pacman.p_col) in [
                         (0, 0),
-                        (self.maze_width - 1, 0),
-                        (0, self.maze_height - 1),
+                        (self.maze_height - 1, 0),
+                        (0, self.maze_width - 1),
                         (self.maze_width - 1, self.maze_height - 1)]:
                     # -------------------------------------------------------
                     # NOTE: STATO FLASH NON FUNZIONANTE - VEDI ANCHE PARSEY.PY
                     # -------------------------------------------------------
-                    # TODO: Add frightened_duration and
-                    # frightened_flash_duration to config.json/GameConfig.
-                    # The core timer should expose the remaining duration so
-                    # the UI can flash fear sprites during the final seconds.
+                    # RISOLTO!
+
                     for ghost in ghosts:
                         ghost.state = GhostState.FRIGHTENED
                 self._try_start_move()
@@ -262,16 +262,21 @@ class PacmanPlayer:
             self._try_start_move()
         return score_gain
 
+    def debug_print(self, pacman: PacmanPlayer) -> None:
+        """Print the debug."""
+        if self.CHEAT_DATA["data_debug"] is True:
+            print(
+                f"Pacman pos: {pacman.p_row, pacman.p_col} "
+                f"lives: {pacman.lives}"
+                )
+
     def _try_start_move(self) -> None:
         """Start a movement if a direction is queued and the move is valid."""
         # ------------------------------------------------------------------
         #   DIREZIONE
         # ----------------1--------------------------------------------------
         # PLACEHOLDER ------------------------------------------------------
-        # TODO: Trasferire la scelta della destinazione e l'avvio del
-        # movimento nel modulo core/movement.
-        # La direzione non viene consumata: rimane attiva finché non viene
-        # sovrascritta da un nuovo input (direzione persistente).
+        # RISOLTO
         direction = self.queued_direction
         self.direction = direction
         if direction is None:
@@ -287,18 +292,18 @@ class PacmanPlayer:
         elif direction == "right":
             dx = 1
 
-        current_x = self.grid_x
-        current_y = self.grid_y
+        current_x = self.p_col
+        current_y = self.p_row
         new_x = current_x + dx
         new_y = current_y + dy
 
         if self.can_move(current_x, current_y, new_x, new_y):
-            self.from_x = current_x
-            self.from_y = current_y
-            self.to_x = new_x
-            self.to_y = new_y
-            self.grid_x = new_x
-            self.grid_y = new_y
+            self.from_col = current_x
+            self.from_row = current_y
+            self.to_col = new_x
+            self.to_row = new_y
+            self.p_col = new_x
+            self.p_row = new_y
             self.is_moving = True
             self.direction = direction
             self.move_started_ms = pygame.time.get_ticks()
@@ -309,33 +314,40 @@ class PacmanPlayer:
         return (self.maze[y][x] & wall_bit) != 0
 
     def pacman_respawn(self, ghosts: list[GhostBase]) -> None:
-        """Fa TODO: docstring."""
+        """Give each ghost a random position in the maze.
+
+        Given distance is far enough to let player continue game.
+        """
         for i, _ in enumerate(ghosts):
             while GhostBase.get_distance(
-                    (ghosts[i].grid_y, ghosts[i].grid_x),
+                    (ghosts[i].g_row, ghosts[i].g_col),
                     self.respawn) < 7 or \
                         len(set(self.ghosts_places(ghosts))) != 4:
-                (ghosts[i].grid_y, ghosts[i].grid_x) = GhostBase.next_step(
-                    ghosts[i].grid_y,
-                    ghosts[i].grid_x,
+                (ghosts[i].g_row, ghosts[i].g_col) = GhostBase.next_step(
+                    ghosts[i].g_row,
+                    ghosts[i].g_col,
                     self.maze,
-                    self.maze_width,
-                    self.maze_height
+                    self.maze_dim
                 )
 
     def ghosts_places(self, ghosts: list[GhostBase]) -> list[tuple[int, int]]:
+        """Retrun a list of tuples.
+
+        With ghost coordinates
+        """
         ghosts_list: list[tuple[int, int]] = []
         for ghost in ghosts:
-            ghosts_list.append((ghost.grid_y, ghost.grid_x))
+            ghosts_list.append((ghost.g_row, ghost.g_col))
         return ghosts_list
 
     def life_loss(self) -> None:
-        """NOTE: life loss manager
-        TODO: connect with game over page"""
+        """Life loss manager.
+
+        Notify to game over page when pacman lose the last life
+        TODO: connect with game over page
+        """
+        print("\a")
+        self.lives -= 1
         if self.lives > 0:
-            self.lives -= 1
-        else:
-            print("Game over: pacman line 339")
-        self.grid_x, self.grid_y = self.respawn
-        self.from_x, self.from_y = self.respawn
-        self.to_x, self.to_y = self.respawn
+            self.p_row, self.p_col = self.from_row, self.from_col = \
+                self.to_row, self.to_col = self.respawn

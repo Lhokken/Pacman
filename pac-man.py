@@ -77,7 +77,7 @@ def main() -> None:
     handler = CLIErrorHandler(exit_on_error=True)
     # 2. Crea il launcher (Eseguiamo tutto)
     launcher = GameEntry()
-    # 3. eseguiamo tutto dentro handeler
+    # 3. eseguiamo tutto dentro handler
     logger.info(
         "[STARTING] Pac-Man running..."
     )

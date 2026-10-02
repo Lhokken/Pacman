@@ -13,29 +13,25 @@ class EntityRenderer:
     """Draws Pac-Man, ghosts, and pacgums using loaded sprites."""
 
     # ---------------------------------------------------------------
-    # NOTE: dopo la migrazione al nuovo
-    #  --------------------------------------------------------------
-    # `AssetManager.ghosts` / `AssetManager.ghost_shared`,
-    #  il rendering dei ghost è interamente in
-    # `draw_ghosts()` + `_pick_ghost_frame()`. Il vecchio metod0
-    # `draw()` è ora responsabile di superpacgum, pacgum e player.
-
-    # ---------------------------------------------------------------
-    #   Durata di un frame dell'animazione idle dei ghost (ms).
+    #   Duration of a single frame of the ghosts' idle animation (ms).
     # ---------------------------------------------------------------
     GHOST_IDLE_FRAME_MS = 300
+    # ---------------------------------------------------------------
+    #   Both are entities of the same fluidity.
+    # ---------------------------------------------------------------
+    GHOST_FRAME_MOVE = 2
 
     def __init__(self, assets: AssetManager) -> None:
         """Initialize with asset manager.
 
         Args:
-            assets: AssetManager containing entity images.
+            assets : AssetManager containing entity images.
         """
         self.assets = assets
 
     # PUBBLIC METHODS ---------------------------------------------------------
     # =========================================================================
-    #   DRAW — player, pacgum, super-pacgum
+    #   DRAW - player, pacgum, super-pacgum
     # =========================================================================
     def draw(
         self,
@@ -53,22 +49,23 @@ class EntityRenderer:
     ) -> None:
         """Draw player, pacgums, and super-pacgums.
 
-        Il disegno dei ghost è delegato a `draw_ghosts()`.
+        Drawing ghosts delegated to `draw_ghosts()`.
 
         Args:
-            screen: Target surface.
-            origin_x, origin_y: Pixel coordinates of maze top-left.
-            tile_size: Size of each cell.
-            player_pixel_center: (x, y) pixel coordinates of player center.
-            ghost_positions: Lista di (x, y) per ogni ghost.
-                Usata SOLO per escludere i pacgum sotto i ghost.
-            maze: Maze matrix (to detect walkable cells for pacgums).
-            eaten_pacgums: Set of (x, y) cells whose pacgum has been eaten.
-                If None, all pacgums are drawn.
-            player_moving: Whether the player is currently moving (controls
-                animation). If False, an idle frame is shown.
-            player_move_progress: Progress of current movement (0.0 to 1.0),
-                used to select animation frame.
+            screen               : Target surface.
+            origin_x, origin_y   : Pixel coordinates of maze top-left.
+                                   tile_size: Size of each cell.
+            player_pixel_center  : (x, y) pixel coordinates of player center.
+            ghost_positions      : List of (x, y) for each ghost.
+                                   Used ONLY to exclude pacgums under ghosts.
+            maze                 : Maze matrix (to detect walkable cells).
+            eaten_pacgums        : Set of cells whose pacgum has been eaten.
+                                   If None, all pacgums are drawn.
+            player_moving        : Whether the player is currently moving
+                                   (controls animation). If False, an idle
+                                   frame is shown.
+            player_move_progress : Progress of current movement (0.0 to 1.0),
+                                   used to select animation frame.
         """
         if eaten_pacgums is None:
             eaten_pacgums = set()
@@ -99,7 +96,7 @@ class EntityRenderer:
         ghost_positions: list[tuple[int, int]],
         eaten_pacgums: set[tuple[int, int]],
     ) -> None:
-        """Disegna i pacgum nelle celle walkable non occupate né mangiate."""
+        """Draw the Pac-Dots in the walkable cells."""
         img = self.assets.pacgum_img
         if img is None:
             return
@@ -118,9 +115,9 @@ class EntityRenderer:
                 # -----------------------------------------------
                 if (x, y) in [
                         (0, 0),
-                        (len(maze) - 1, 0),
+                        (len(maze[0]) - 1, 0),
                         (0, len(maze) - 1),
-                        (len(maze) - 1, len(maze) - 1)
+                        (len(maze[0]) - 1, len(maze) - 1)
                         ]:
                     xl_img = transform.smoothscale(img, (13, 13))
                     self._draw_centered(
@@ -154,8 +151,8 @@ class EntityRenderer:
         # -----------------------------------------------------------------
         if player_moving and frames:
             # -------------------------------------------------------------
-            # Il progresso 0..1 scandisce i frame due volte più veloce.
-            # ------------------------------------------------------------
+            #   The 0..1 progress cycles through the frames twice as fast.
+            # -------------------------------------------------------------
             idx = int(player_move_progress * len(frames) * 2) % len(frames)
             player_img = frames[idx]
         elif frames:
@@ -191,36 +188,39 @@ class EntityRenderer:
         *,
         frightened_flash: bool = False,
     ) -> None:
-        """Disegna i ghost usando descrittori ricchi.
+        """Draw the ghosts using rich descriptors.
 
         Args:
-            screen: Surface di destinazione.
-            origin_x, origin_y: Pixel coord del top-left del labirinto.
-            tile_size: Dimensione cella in pixel.
-            ghost_infos: Lista di dict prodotti da GhostTeamAdapter.
-                Ogni dict contiene:
-                    name, x, y (float, in CELLE), facing,
-                    moving, move_progress, state
-            frightened_flash: True negli ultimi istanti del power pellet:
-                usa i frame "fear_flash" invece di "fear".
+            screen             : Target surface.
+            origin_x, origin_y : Pixel coordinates of the maze's top-left
+                                 corner.
+            tile_size          : Cell size in pixels.
+            ghost_infos        : List of dicts produced by GhostTeamAdapter.
+                                 Each dict contains :
+                                        name, x, y (float, in CELLS), facing,
+                                        moving, move_progress, state
+            frightened_flash   : True during the final of the power pellet:
+                                 use "fear_flash" frames instead of "fear".
         """
-        # NOTE: Dopo la protezione della key word only marker `*` noi abbiamo
-        # frightened_flash: bool = False. Il senso e che frightened_flash
-        # puoi passarlo come nome, e un oggetto invocabile e devi scriverlo.
-        # Questo avrebbe dovuto proteggere la chiamata...
-        # Cosa e successo nel refactoring? E stato tolto qualcosa dato che
-        # nella versione precedente funzionava.
-
         half = tile_size // 2
         for info in ghost_infos:
-            img = self._pick_ghost_frame(info, frightened_flash)
+
+            img = (
+                self._pick_ghost_frame(info, frightened_flash)
+            )
+
             if img is None:
                 continue
+
             cx = (
-                int(origin_x + info["x"] * tile_size + half)
+                round(
+                    origin_x + info["x"] * tile_size + half
+                )
             )
             cy = (
-                int(origin_y + info["y"] * tile_size + half)
+                round(
+                    origin_y + info["y"] * tile_size + half
+                )
             )
             self._draw_centered(screen, img, cx, cy)
 
@@ -231,7 +231,7 @@ class EntityRenderer:
     ) -> Surface | None:
         """Sceglie il frame corretto in base allo stato del ghost.
 
-        Ordine di priorità:
+        Ordine di priorita:
             1. state == "eaten"          : sprite "dead"
             2. state == "frightened"     : fear / fear_flash
             3. state == frightened_flash : sprite chiaro
@@ -276,22 +276,26 @@ class EntityRenderer:
 
         return frames[self._frame_idx(info, len(frames))]
 
-    # ------------------------------------------------------------------
     def _frame_idx(self, info: dict, n_frames: int) -> int:
-        """Sceglie l'indice del frame da mostrare.
+        """Select the index of the frame to display.
 
-        - Se il ghost si muove: il progresso 0..1 scandisce i frame.
-        - Se è fermo: idle loop basato sul tempo reale (monotonic).
+        - If the ghost is moving: progress cycles through the frames fast.
+        - If it is stationary: an idle loop based on real time (monotonic).
         """
         if n_frames <= 1:
             return 0
 
         if info.get("moving"):
             p = float(info.get("move_progress", 0.0))
-            return int(p * n_frames) % n_frames
+            # -------------------------------------------------------------
+            #   GHOST: progress cycles through the frames twice as fast.
+            # -------------------------------------------------------------
+            # NOTE: NON Usiamo piu GHOST_IDLE_FRAME_MS ma GHOST_FRAME_MOVE
+            idx = int(p * n_frames * self.GHOST_FRAME_MOVE) % n_frames
+            return idx
 
         elapsed_ms = int(time.monotonic() * 1000)
-
+        # gestione idle frames
         return (
             (elapsed_ms // self.GHOST_IDLE_FRAME_MS) % n_frames
         )

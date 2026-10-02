@@ -99,18 +99,10 @@ class MainMenu(Scene):
         # ----------------------------------------------------------
         # TODO: rimuovere a fine progetto — scorciatoie dev
         # ----------------------------------------------------------
-        elif event.key == pygame.K_g:
-            from .end_screen import GameOverPage
-            self.app.switch_scene(GameOverPage(self.app, score=123))
-            logger.debug(
-                "Ancora in costruzione"
-            )
+
         elif event.key == pygame.K_v:
             from .end_screen import VictoryPage
             self.app.switch_scene(VictoryPage(self.app, score=456))
-            logger.debug(
-                "Ancora in costruzione"
-            )
 
     def draw(self, screen: Surface) -> None:
         """Draw the menu on the surface.
@@ -222,8 +214,8 @@ class MainMenu(Scene):
 
     def _show_highscores(self) -> None:
         """Show the high scores page."""
-        # from .hight_score import HighScorePage
-        # self.app.switch_scene(HighScorePage(self.app))
+        from .hight_score import HighScorePage
+        self.app.switch_scene(HighScorePage(self.app))
 
     def _show_instructions(self) -> None:
         """Show the game instructions page."""
