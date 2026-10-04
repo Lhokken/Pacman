@@ -115,6 +115,22 @@ class PauseMenu(Scene):
         elif event.key == pygame.K_RETURN:
             self.buttons[self.selected_index].handle_event(event)
 
+    def on_resize(self, width: int, height: int) -> None:
+        """Inoltra il resize alla GamePage sottostante.
+
+        PauseMenu disegna la GamePage come sfondo: se la finestra
+        cambia dimensione mentre siamo in pausa, la GamePage deve
+        ricalcolare il proprio layout, altrimenti resta con la
+        cache vecchia e appare "in alto a sinistra".
+
+        Args:
+            width : Nuova larghezza della surface in pixel.
+            height: Nuova altezza della surface in pixel.
+        """
+        self.game_page.on_resize(width, height)
+        # L'overlay viene ricreato al prossimo draw perché
+        # `_draw_overlay` confronta la size con quella salvata.
+
     def draw(self, screen: Surface) -> None:
         """Disegna la partita sotto OVERLAY , l'overlay e il menu.
 

@@ -202,7 +202,7 @@ class EntityRenderer:
             frightened_flash   : True during the final of the power pellet:
                                  use "fear_flash" frames instead of "fear".
         """
-        # half = tile_size // 2
+        half = tile_size // 2
         for info in ghost_infos:
 
             img = (

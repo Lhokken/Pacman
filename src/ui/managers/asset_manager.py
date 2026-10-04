@@ -10,7 +10,10 @@ import pygame
 from pygame.surface import Surface
 from dataclasses import dataclass, field
 
-from .asset_exceptions import AssetNotFoundError
+from .asset_exceptions import (
+    AssetNotFoundError,
+    MissingRequiredAssetsError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,19 +52,37 @@ class AssetManager:
     """Loads and caches sprite images scaled to the current tile size.
 
     Attributes:
-        assets_base: Root path containing all image assets.
-        tile_size: Current tile size in pixels.
-        player_img: Player sprite (None if missing).
-        wall_tiles: Dict mapping logical wall mask (0-15) to Surface.
-        intersection_tiles: Dict mapping logical intersection mask (0-15)
-            to Surface.
-        border_tiles: Dict mapping border key to Surface.
-        ghost_images: List of 4 ghost Surfaces (may contain None).
-        pacgum_img: Small dot sprite.
-        super_pacgum_img: Power pellet sprite.
-        logo_icon: logo icon for panel.
-        pacman_icon: Pac-Man icon for lives panel.
+        assets_base        : Root path containing all image assets.
+        tile_size          : Current tile size in pixels.
+        player_img         : Player sprite (None if missing).
+        wall_tiles         : Dict mapping logical wall mask (0-15) to Surface.
+        intersection_tiles : Dict mapping logical intersection mask
+                            (0-15) to Surface.
+        border_tiles       : Dict mapping border key to Surface.
+        border_wall_tiles  : Dict mapping connector direction to Surface.
+                             Blank if connectors are not present.
+        ghost_images       : List of 4 ghost Surfaces (may contain None).
+        pacgum_img         : Small dot sprite.
+        super_pacgum_img   : Power pellet sprite.
+        logo_icon          : logo icon for panel.
+        pacman_icon        : Pac-Man icon for lives panel.
     """
+
+    # -------------------------------------------------------------------
+    # Fallback: if a frame edge (``wall/double/*``) is missing,
+    # we try to replace it with the corresponding wall mask.
+    # Mask bit convention: 1=N (up), 2=E (right), 4=S (down), 8=W (left).
+    # -------------------------------------------------------------------
+    _BORDER_FALLBACK_MASK: dict[str, int] = {
+        "corner_tl": 2 | 4,   # E + S
+        "corner_tr": 4 | 8,   # S + W
+        "corner_bl": 1 | 2,   # N + E
+        "corner_br": 1 | 8,   # N + W
+        "top":       2 | 8,   # E + W (horizontal)
+        "bottom":    2 | 8,   # E + W (horizontal)
+        "left":      1 | 4,   # N + S (vertical)
+        "right":     1 | 4,   # N + S (vertical)
+    }
 
     def __init__(self, assets_base: Path, tile_size: int) -> None:
         """Initialize and load all assets.
@@ -80,6 +101,7 @@ class AssetManager:
         self.wall_tiles = self._load_wall_tiles()
         self.intersection_tiles = self._load_intersection_tiles()
         self.border_tiles = self._load_border_tiles()
+        self.border_wall_tiles = self._load_border_wall_tiles()
 
         self.ghosts, self.ghost_shared = self._load_ghosts()
 
@@ -177,11 +199,13 @@ class AssetManager:
     def _load_wall_tiles(self) -> dict[int, Surface]:
         """Load wall tiles for each mask.
 
+        I file ``wall_<mask>.png`` vivono in ``wall/intersections/``.
+
         Returns:
             Dictionary mapping mask values to their corresponding
             tile surfaces.
         """
-        assets_dir = self.assets_base / "wall" / "single"
+        assets_dir = self.assets_base / "wall" / "intersections"
         tiles: dict[int, Surface] = {}
         for mask in range(16):
             tile_path = assets_dir / f"wall_{mask}.png"
@@ -199,7 +223,9 @@ class AssetManager:
                 )
                 tiles[mask] = tile
             except pygame.error as e:
-                logger.error("Failed to load wall tile %s: %s", tile_path, e)
+                logger.error(
+                    "Failed to load wall tile %s: %s", tile_path, e
+                )
         return tiles
 
     # --------------------------------------------------------------------
@@ -248,12 +274,25 @@ class AssetManager:
     # --------------------------------------------------------------------
     #   Load border tiles for each mask (corner and T-junctions).
     # --------------------------------------------------------------------
+    # --------------------------------------------------------------------
+    #   Load border tiles for the outer frame (with all-or-nothing fallback).
+    # --------------------------------------------------------------------
     def _load_border_tiles(self) -> dict[str, Surface]:
-        """Load border tiles for each mask.
+        """Load the border frame using an all-or-nothing fallback policy.
+
+        Policy:
+            1. Attempt to load **all** files in ``wall/double/``.
+            2. If even a single file is missing or unreadable, discard the
+               entire set and reconstruct the frame using the corresponding
+               wall masks (``self._BORDER_FALLBACK_MASK``).
+            3. If a fallback wall is also missing, log a warning and
+               proceed without that key (the border will not be drawn).
+
+        This ensures the frame remains consistent: either entirely
+        ``double`` or entirely ``wall``.
 
         Returns:
-            Dictionary mapping mask values to their corresponding
-            tile surfaces.
+            Dictionary mapping the logical border key to a Surface.
         """
         assets_dir = self.assets_base / "wall" / "double"
         file_to_key = {
@@ -261,16 +300,112 @@ class AssetManager:
             "corner_tr": "corner_tr",
             "corner_bl": "corner_bl",
             "corner_br": "corner_br",
-            "t_up": "top",
-            "t_down": "bottom",
-            "t_left": "left",
-            "t_right": "right",
+            "t_up":      "top",
+            "t_down":    "bottom",
+            "t_left":    "left",
+            "t_right":   "right",
+        }
+
+        # ---------------------------------------------------------------
+        # 1. Tentativo: carica tutti i file double.
+        # ---------------------------------------------------------------
+        double_tiles: dict[str, Surface] = {}
+        missing_double: list[str] = []
+
+        for file_name, key in file_to_key.items():
+            path = assets_dir / f"{file_name}.png"
+            if not path.exists():
+                missing_double.append(str(path))
+                continue
+            try:
+                tile = pygame.image.load(path).convert_alpha()
+                tile = pygame.transform.scale(
+                    tile, (self.tile_size, self.tile_size)
+                )
+                double_tiles[key] = tile
+            except pygame.error as e:
+                logger.error(
+                    "Failed to load border tile %s: %s", path, e
+                )
+                missing_double.append(str(path))
+
+        if not missing_double:
+            return double_tiles
+
+        # ---------------------------------------------------------------
+        # 2. Fallback totale: ricostruisci tutta la cornice con le wall.
+        # ---------------------------------------------------------------
+        logger.warning(
+            "Border frame incomplete (%d missing); rebuilding the whole "
+            "frame from walls. Missing: %s",
+            len(missing_double),
+            missing_double,
+        )
+
+        tiles: dict[str, Surface] = {}
+        for key, mask in self._BORDER_FALLBACK_MASK.items():
+            if mask in self.wall_tiles:
+                tiles[key] = self.wall_tiles[mask]
+            else:
+                logger.warning(
+                    "Fallback wall mask %d missing for border key '%s'; "
+                    "frame won't be drawn for this key.",
+                    mask,
+                    key,
+                )
+        return tiles
+
+    # --------------------------------------------------------------------
+    #   Load border wall connectors (optional).
+    # --------------------------------------------------------------------
+    def _load_border_wall_tiles(self) -> dict[str, Surface]:
+        """Load optional wall connectors that meet the outer frame.
+
+        I connettori vivono in una di queste cartelle (la prima che
+        esiste):
+            - ``wall/double/connectors/``
+            - ``wall/border/connectors/``
+
+        File attesi:
+            ``t_wall_up.png``, ``t_wall_down.png``,
+            ``t_wall_left.png``, ``t_wall_right.png``
+
+        Se la cartella non esiste, restituisce un dizionario vuoto: il
+        ``MazeRenderer`` userà automaticamente il wall tile legacy come
+        fallback.
+
+        Returns:
+            Dictionary mapping connector direction ("up"|"down"|"left"|
+            "right") to Surface. Vuoto se i connettori non sono presenti.
+        """
+        candidate_dirs = [
+            self.assets_base / "wall" / "double" / "connectors",
+            self.assets_base / "wall" / "border" / "connectors",
+        ]
+        assets_dir = next(
+            (p for p in candidate_dirs if p.exists()),
+            None,
+        )
+        if assets_dir is None:
+            logger.debug(
+                "No border connector directory found; "
+                "wall connectors disabled."
+            )
+            return {}
+
+        file_to_key = {
+            "t_wall_up":    "up",
+            "t_wall_down":  "down",
+            "t_wall_left":  "left",
+            "t_wall_right": "right",
         }
         tiles: dict[str, Surface] = {}
         for file_name, key in file_to_key.items():
             path = assets_dir / f"{file_name}.png"
             if not path.exists():
-                logger.warning("Border tile %s not found.", path)
+                logger.debug(
+                    "Connector %s not found; skipping.", path
+                )
                 continue
             try:
                 tile = pygame.image.load(path).convert_alpha()
@@ -279,7 +414,9 @@ class AssetManager:
                 )
                 tiles[key] = tile
             except pygame.error as e:
-                logger.error("Failed to load border tile %s: %s", path, e)
+                logger.error(
+                    "Failed to load connector %s: %s", path, e
+                )
         return tiles
 
     # --------------------------------------------------------------------
@@ -405,6 +542,7 @@ class AssetManager:
     def _load_super_pacgum(self) -> Optional[Surface]:
 
         path = self.assets_base / "gum" / "super_pacgum.png"
+
         if not path.exists():
             logger.warning(
                 "%s not found. Super-pacgums won't be visible.",
@@ -413,9 +551,16 @@ class AssetManager:
             return None
         try:
             img = pygame.image.load(path).convert_alpha()
-            return self._scale_gum_asset(img, ratio=0.4, min_size=8)
+            return self._scale_gum_asset(
+                img,
+                ratio=0.4,
+                min_size=8
+            )
         except pygame.error as e:
-            logger.error("Failed to load super-pacgum image: %s", e)
+            logger.error(
+                "Failed to load super-pacgum image: %s",
+                e,
+            )
             return None
 
     # -------------------------------------------------------------------
@@ -424,9 +569,11 @@ class AssetManager:
     def _load_pacman_icon(self) -> Optional[Surface]:
 
         path = self.assets_base / "player" / "animation" / "Player_start.png"
+
         if not path.exists():
             logger.warning(
-                "Pac-Man icon not found: %s", path
+                "Pac-Man icon not found: %s",
+                path,
             )
             return None
         try:
@@ -443,39 +590,32 @@ class AssetManager:
     #   Asset availability check
     # -------------------------------------------------------------------
     def _ensure_assets_available(self) -> None:
-        """Raise RuntimeError only if essential maze tiles are missing."""
-        missing_walls = [m for m in range(16) if m not in self.wall_tiles]
+        """Validate that all required rendering assets are present.
+
+        Mandatory:
+        - wall masks 0-15         (``wall/intersections/wall_*.png``)
+        - intersection masks 0-15 (``wall/intersections/intersection_*.png``)
+
+        The frame (``wall/double/*``) uses a fallback to the
+        wall assets: if missing, it does not prevent startup.
+
+        Raises:
+        MissingRequiredAssetsError: If a mandatory asset is missing.
+        """
+        missing_walls = [
+            m for m in range(16) if m not in self.wall_tiles
+        ]
         missing_intersections = [
             m for m in range(16) if m not in self.intersection_tiles
         ]
-        required_border = {
-            "corner_tl",
-            "corner_tr",
-            "corner_bl",
-            "corner_br",
-            "top",
-            "bottom",
-            "left",
-            "right",
-        }
-        missing_border = required_border - set(self.border_tiles.keys())
-        # CONTROLLO: Missing intersection
+
+        details: list[str] = []
+        if missing_walls:
+            details.append(f"wall masks {missing_walls}")
         if missing_intersections:
-            logger.warning(
-                "Intersection tiles are missing; continuing without them: %s",
-                missing_intersections,
+            details.append(
+                f"intersection masks {missing_intersections}"
             )
-        # CONTROLLO: Missing Walls
-        if missing_walls or missing_border:
-            details = []
-            if missing_walls:
-                details.append(
-                    f"wall/single masks {missing_walls}"
-                )
-            if missing_border:
-                details.append(
-                    f"wall/double tiles {sorted(missing_border)}"
-                )
-            raise RuntimeError(
-                "Missing required rendering assets: " + "; ".join(details)
-            )
+
+        if details:
+            raise MissingRequiredAssetsError(details)

@@ -61,6 +61,17 @@ class Button:
         """Update the button text."""
         self.text = text
 
+    def activate(self) -> bool:
+        """Invoke the on_select callback if the button is selected.
+
+        Returns:
+            True if the callback was invoked, False otherwise.
+        """
+        if self.selected and self.on_select is not None:
+            self.on_select()
+            return True
+        return False
+
     def handle_event(self, event: pygame.event.Event) -> bool:
         """Handle a single pygame event.
 
@@ -71,9 +82,7 @@ class Button:
             True if the event was consumed by the button, False otherwise.
         """
         if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-            if self.selected and self.on_select is not None:
-                self.on_select()
-                return True
+            return self.activate()
         return False
 
     def draw(self, surface: Surface) -> None:

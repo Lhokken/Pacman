@@ -62,4 +62,7 @@ Last life loss implemented, back to main menu. |
 | 2026-10-01 | *gcerrete* | Modificato pacgums, pacman, game_page, ghost. Bug dimensioni scambiate risolto. Bug timer super pacgums risolto, il timer riparte anche mangiando una superpacgum mentre i ghosts sono in fear. Risolto Bug pacgum non mangiato mentre e sovrapposto ad un ghost in frighten o fear.
 | 2026-10-02 | *gcerrete* | Analisi sul miglior modo di separare movimento pacman / ghost.
 | 2026-10-03 | *gcerrete* | Trovati e risolti altri bug su scambio dimensioni maze. Refactoring su nomi coordinate, rinominandole in row col.
-| 2026-10-04 | *gcerrete* | Separato movimento pacman dal movimento ghost. Inizio a lavorare su implementazione movimento fluido. Collisione implementata anche mentre il pacman rimane fermo.
+| 2026-10-04 | *gcerrete* | Separato movimento pacman dal movimento ghost. Inizio a lavorare su implementazione movimento fluido.
+| 2026-10-01 | *fedegugl* | **REFACTORING** : allineamento delle title del maze. dimensioni allineate a 64 x 64 |
+| 2026-10-02 | *fedegugl* | **BUG CRITICO** : il render del maze non ha rispettato le specifiche: refactoring per eviatre doppie stampe |
+| 2026-10-03 | *fedegugl* | Risolto bug doppia stampa, aggiunto togle fullscreem, aggiornato asset managwer per allinearsi alla nuova logica di generazione |

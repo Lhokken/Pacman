@@ -138,9 +138,9 @@ class CheatPage(Scene):
         for label, attr_name in self._TOGGLES:
             rect = pygame.Rect(0, 0, 500, 50)
 
-            # --------------------------------------------------------------
+            # --------------------------------------------------------
             #   Closure per catturare attr_name
-            # --------------------------------------------------------------
+            # --------------------------------------------------------
             def make_toggle_callback(attr: str) -> Callable[[], None]:
                 def callback() -> None:
                     self._toggle(attr)
@@ -155,6 +155,18 @@ class CheatPage(Scene):
                 self.font_option_selected,
                 on_select=make_toggle_callback(attr_name),
             ))
+        # --------------------------------------------------------------
+        # Fullscreen toggle (app-level, not a game cheat).
+        # State lives in GameApp.is_fullscreen, not CHEAT_DATA.
+        # --------------------------------------------------------------
+        self._fullscreen_button = Button(
+            pygame.Rect(0, 0, 500, 50),
+            self._fullscreen_label(),
+            self.font_option,
+            self.font_option_selected,
+            on_select=self._toggle_fullscreen,
+        )
+        self.buttons.append(self._fullscreen_button)
 
         self.buttons.append(Button(
             pygame.Rect(0, 0, 200, 50),
@@ -201,6 +213,25 @@ class CheatPage(Scene):
             name: bool(getattr(self, name))
             for _, name in self._TOGGLES
         })
+
+    # ================================================================
+    #   Fullscreen (app-level toggle, non è un cheat del core)
+    # ================================================================
+    def _fullscreen_label(self) -> str:
+        """Build the Fullscreen button label from the app state."""
+        return (
+            f"Fullscreen: "
+            f"{'ON' if self.app.is_fullscreen else 'OFF'}"
+        )
+
+    def _toggle_fullscreen(self) -> None:
+        """Toggle fullscreen via GameApp and refresh the button label.
+
+        Non passa da ``_apply_cheats``: lo stato non è un cheat del core,
+        è una modalità della finestra gestita da ``GameApp``.
+        """
+        self.app.toggle_fullscreen()
+        self._fullscreen_button.set_text(self._fullscreen_label())
 
     # ================================================================
     #   Navigazione
@@ -251,11 +282,7 @@ class CheatPage(Scene):
     #   Lifecycle
     # ================================================================
     def handle_events(self) -> None:
-        """Handle input events for the cheat page.
-
-        Supports navigation using the up/down arrow keys, confirmation with
-        Enter, and exiting with Esc (equivalent to the "Back" button).
-        """
+        """Handle input events for the cheat page."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.app.running = False
@@ -268,10 +295,11 @@ class CheatPage(Scene):
                     self.selected_index = (
                         (self.selected_index + 1) % len(self.buttons)
                     )
-                elif event.key == pygame.K_RETURN:
-                    self.buttons[self.selected_index].handle_event(event)
                 elif event.key == pygame.K_ESCAPE:
                     self._go_back()
+            elif event.type == pygame.KEYUP:
+                if event.key == pygame.K_RETURN:
+                    self.buttons[self.selected_index].activate()
 
     def draw(self, screen: Surface) -> None:
         """Draws the title and buttons on the surface.

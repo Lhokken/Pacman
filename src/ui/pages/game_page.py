@@ -90,12 +90,17 @@ class GamePage(Scene):
             self.maze_width = self.config.levels[level].width
             self.maze_height = self.config.levels[level].height
             self.maze_dim = (self.maze_height, self.maze_width)
+            # INTEGRAZIONE: corners in (row, col), come richiesto da
+            # PacgumsManagement.try_to_eat -> `if (row, col) in
+            # self.corners`. La versione precedente usava (0, H-1) /
+            # (W-1, 0) / (W-1, H-1), cioè (col, row) — da cui il
+            # "bug gomma in alto a destra talvolta non viene mangiata".
             self.maze_corners = [
-                    (0, 0),
-                    (0, self.maze_width - 1),
-                    (self.maze_height - 1, 0),
-                    (self.maze_height - 1, self.maze_width - 1),
-                ]
+                (0, 0),
+                (0, self.maze_width - 1),
+                (self.maze_height - 1, 0),
+                (self.maze_height - 1, self.maze_width - 1),
+            ]
             # --------------------------------------------------------
             #   LAYOUT
             # --------------------------------------------------------
@@ -135,6 +140,8 @@ class GamePage(Scene):
             self.player.from_col = spawn[1]
             self.player.to_row = spawn[0]
             self.player.to_col = spawn[1]
+        # INTEGRAZIONE: GhostBase.__init__(g_row, g_col) -> passare
+        # (row, col). La versione precedente passava (x, y).
         self.ghosts = [Ghost(row, col) for row, col in self._ghost_spawn()]
         for ghost in self.ghosts:
             ghost.maze = self.maze
@@ -284,6 +291,8 @@ class GamePage(Scene):
         )
         self.pacgums.corners = self.maze_corners
         # bug gomma in alto a destra talvolta non viene mangiata
+        # INTEGRAZIONE: risolto a monte dal fix di `maze_corners` /
+        # `is_walkable`. Il commento resta come promemoria.
         self.maze_renderer = MazeRenderer(self.maze, self.assets)
         for ghost in self.ghosts:
             ghost.g_row, ghost.g_col = ghost.corner
@@ -502,6 +511,11 @@ class GamePage(Scene):
     def is_walkable(self, row: int, col: int) -> bool:
         """Indicate whether the cell `(row, col)` is walkable.
 
+        INTEGRAZIONE: la firma è (row, col) perché PacgumsManagement
+        chiama `walkable_fn(row, col)`. Il corpo accede a
+        `maze[row][col]`. La versione precedente usava (x, y) e
+        `maze[y][x]`, invertendo gli indici.
+
         Args:
             row: row coordinate of the cell (in cells).
             col: column coordinate of the cell (in cells).
@@ -524,40 +538,36 @@ class GamePage(Scene):
     def _build_ghost_infos(self) -> list[dict[str, object]]:
         """Construct ghost info for `EntityRenderer.draw_ghosts`.
 
-        Format expected by the renderer:
-        name, x, y, facing, moving, move_progress, state
+        INTEGRAZIONE: le coordinate sono in PIXEL, perché
+        `EntityRenderer.draw_ghosts` le usa direttamente come
+        `center` (la conversione cella->pixel è stata spostata nel
+        chiamante, vedi le righe commentate nel renderer).
 
-        Sources:
+        L'interpolazione usa `Ghost.MOVE_STARTED_MS` /
+        `Ghost.GHOST_MOVE_DURATION`, aggiornati dal core in
+        `GhostBase.team_ghost`. `from_*` / `to_*` sono settati in
+        `GhostBase.blinky/clyde/inky/pinky`.
 
-            - `x`, `y`: `ghost.p_col`, `ghost.p_row` (in cells).
-            - `facing`: `ghost.direction` if populated by the core,
-            otherwise `"right"`.
-            - `moving`: `False` (the core does not expose this yet).
-            - `move_progress`: `0.0`.
-            - `state`: current value of `ghost.state`.
-
-        The idle animation (stationary ghosts that "pulse") is handled by
-        the renderer using real-time data; no need to move them here.
-
-        TODO: Once the core exposes each ghost's movement endpoints and
-        progress, pass the interpolated cell coordinates here and populate
-        `moving`/`move_progress`. `draw_ghosts()` already accepts fractional
-        cell coordinates, so no renderer-side position interpolation is needed.
+        Il nome è letto con `getattr`: `GhostBase.name` è solo
+        un'annotazione di tipo in `__init__`, viene assegnato lazy
+        al primo `team_ghost`. Senza fallback, il primo frame
+        solleva `AttributeError`.
 
         Returns:
-            A list of dictionaries, one per ghost, containing the keys
-            expected by the renderer.
+            Una lista di dict con le chiavi attese dal renderer.
         """
+        names_fallback = ("blinky", "pinky", "inky", "clyde")
+
         tile = self.tile_size
         half = tile // 2
-        origin_x, origin_y = self.metrics.maze_origin
+        origin_col, origin_row = self.metrics.maze_origin
 
         infos: list[dict[str, object]] = []
         for ghost in self.ghosts:
             progress = 0.0
             if not Ghost.MOVING:
-                cx = origin_x + ghost.g_col * tile + half
-                cy = origin_y + ghost.g_row * tile + half
+                col = origin_col + ghost.g_col * tile + half
+                row = origin_row + ghost.g_row * tile + half
             else:
                 elapsed = (
                     pygame.time.get_ticks() - Ghost.MOVE_STARTED_MS
@@ -566,26 +576,25 @@ class GamePage(Scene):
                     min(elapsed / Ghost.GHOST_MOVE_DURATION, 1.0)
                 )
 
-                from_cx = origin_x + ghost.from_col * tile + half
-                from_cy = origin_y + ghost.from_row * tile + half
+                from_col = origin_col + ghost.from_col * tile + half
+                from_row = origin_row + ghost.from_row * tile + half
 
-                to_cx = origin_x + ghost.to_col * tile + half
-                to_cy = origin_y + ghost.to_row * tile + half
+                to_cx = origin_col + ghost.to_col * tile + half
+                to_cy = origin_row + ghost.to_row * tile + half
 
-                cx = int(from_cx + (to_cx - from_cx) * progress)
-                cy = int(from_cy + (to_cy - from_cy) * progress)
+                col = int(from_col + (to_cx - from_col) * progress)
+                row = int(from_row + (to_cy - from_row) * progress)
 
             infos.append({
                 "name": ghost.name,
-                "x": float(cx),
-                "y": float(cy),
+                "x": float(col),
+                "y": float(row),
                 "facing": getattr(ghost, "direction", None) or "right",
                 "moving": True,
                 "move_progress": progress,
                 "state": ghost.state.value,
             })
 
-        print(infos[0]["x"], infos[0]["y"], infos[0]["move_progress"])
         return infos
 
     def _ghost_spawn(self) -> list[tuple[int, int]]:

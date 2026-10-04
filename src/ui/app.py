@@ -234,20 +234,28 @@ class GameApp:
     def switch_scene(self, scene: Scene) -> None:
         """Change the current scene.
 
-            1. Notifies the old scene that it is about to be
-               left (hook `on_pause`).
+            1. Notifies the old scene that it is about to be left
+               (hook `on_pause`).
             2. Replaces the current scene.
             3. Activates a short input cooldown (prevents key repeat).
-            4. Notifies the new scene that it is active (hook `on_resume`).
+            4. Notifies the new scene of the current screen size
+               (hook `on_resize`).
+            5. Notifies the new scene that it is active (hook `on_resume`).
 
         Args:
             scene: The new scene to make active.
         """
-        # PAUSE CONTROLL -----------------------------------------------
         if self.current_scene is not None:
             self.current_scene.on_pause()
         self.current_scene = scene
         self._input_cooldown = self.SWITCH_INPUT_COOLDOWN_FRAMES
+
+        # Ogni scena che diventa attiva deve conoscere le dimensioni
+        # correnti della surface: potrebbero essere cambiate mentre
+        # era in pausa (es. fullscreen toggled da PauseMenu).
+        w, h = self.screen.get_size()
+        scene.on_resize(w, h)
+
         scene.on_resume()
 
     # ==================================================================

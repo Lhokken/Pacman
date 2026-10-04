@@ -38,7 +38,7 @@ class AssetNotFoundError(AssetError):
         """
         self.asset_path = asset_path
         super().__init__(
-            f"[WARNING] Asset not found or unreadable: {asset_path}"
+            f"Asset not found or unreadable: {asset_path}"
         )
 
 
@@ -55,4 +55,25 @@ class UnsupportedGlyphError(AssetError):
         where = f" in font '{font_name}'" if font_name else ""
         super().__init__(
             f"[WARNING] Unsupported glyph '{glyph}'{where}"
+        )
+
+
+class MissingRequiredAssetsError(AssetError):
+    """Raised when one or more required rendering assets are missing.
+
+    Attributes:
+        missing: List of human-readable descriptions of missing assets.
+    """
+
+    def __init__(self, missing: list[str]) -> None:
+        """Initialize the exception.
+
+        Args:
+            missing: List of descriptions of the missing assets,
+                e.g. ``["wall masks [0, 1]", "border tiles ['top']"]``.
+        """
+        self.missing = missing
+        details = "; ".join(missing) if missing else "unknown assets"
+        super().__init__(
+            f"Missing required rendering assets: {details}"
         )
