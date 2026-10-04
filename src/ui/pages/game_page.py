@@ -511,7 +511,7 @@ class GamePage(Scene):
             wall; `False` otherwise.
         """
         if row < 0 or col < 0 or row >= self.maze_height or \
-            col >= self.maze_width:
+                col >= self.maze_width:
             return False
         return self.maze[row][col] != 15
 
@@ -548,24 +548,44 @@ class GamePage(Scene):
             A list of dictionaries, one per ghost, containing the keys
             expected by the renderer.
         """
-        names = (
-            "blinky",
-            "pinky",
-            "inky",
-            "clyde"
-        )
+        tile = self.tile_size
+        half = tile // 2
+        origin_x, origin_y = self.metrics.maze_origin
 
         infos: list[dict[str, object]] = []
-        for ghost, name in zip(self.ghosts, names):
+        for ghost in self.ghosts:
+            progress = 0.0
+            if not Ghost.MOVING:
+                cx = origin_x + ghost.g_col * tile + half
+                cy = origin_y + ghost.g_row * tile + half
+            else:
+                elapsed = (
+                    pygame.time.get_ticks() - Ghost.MOVE_STARTED_MS
+                )
+                progress = (
+                    min(elapsed / Ghost.GHOST_MOVE_DURATION, 1.0)
+                )
+
+                from_cx = origin_x + ghost.from_col * tile + half
+                from_cy = origin_y + ghost.from_row * tile + half
+
+                to_cx = origin_x + ghost.to_col * tile + half
+                to_cy = origin_y + ghost.to_row * tile + half
+
+                cx = int(from_cx + (to_cx - from_cx) * progress)
+                cy = int(from_cy + (to_cy - from_cy) * progress)
+
             infos.append({
-                "name": name,
-                "x": float(ghost.g_col),
-                "y": float(ghost.g_row),
+                "name": ghost.name,
+                "x": float(cx),
+                "y": float(cy),
                 "facing": getattr(ghost, "direction", None) or "right",
-                "moving": False,
-                "move_progress": 0.0,
+                "moving": True,
+                "move_progress": progress,
                 "state": ghost.state.value,
             })
+
+        print(infos[0]["x"], infos[0]["y"], infos[0]["move_progress"])
         return infos
 
     def _ghost_spawn(self) -> list[tuple[int, int]]:

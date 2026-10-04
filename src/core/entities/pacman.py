@@ -203,7 +203,7 @@ class PacmanPlayer:
                pacgums: PacgumsManagement,
                pacman: PacmanPlayer) -> int:
         """Advance movement and eat a pacgum when a move is complete."""
-        score_gain = 0
+        score_gain: int = 0
         if self.CHEAT_DATA["data_debug"] is True and len(pacgums.eaten) > 9:
             pacgums.all_eaten = True
         if self.CHEAT_DATA["ghost_freeze"] is False:
@@ -211,17 +211,18 @@ class PacmanPlayer:
             # Pacman completes a tile. Give ghosts their own timed
             # movement/update so their speed and interpolation do not
             # depend on Pacman's move duration.
-            if self.is_moving:
-                ghost_time = (
-                    pygame.time.get_ticks() - GhostBase.MOVE_STARTED_MS
-                )
-                if ghost_time >= GhostBase.GHOST_MOVE_DURATION:
-                    GhostBase.team_ghost(
-                        ghosts,
-                        (pacman.p_row, pacman.p_col),
-                        rand=(50 + (self.level * 3)),
-                        debug=self.CHEAT_DATA["data_debug"]
-                        )
+            # Risolto !!!
+            ghost_time = (
+                pygame.time.get_ticks() - GhostBase.MOVE_STARTED_MS
+            )
+            if ghost_time >= GhostBase.GHOST_MOVE_DURATION:
+                GhostBase.team_ghost(
+                    ghosts,
+                    (pacman.p_row, pacman.p_col),
+                    rand=(50 + (self.level * 3)),
+                    debug=self.CHEAT_DATA["data_debug"]
+                    )
+                self.collision_check(ghosts, pacgums, score_gain)
         if self.is_moving:
             elapsed_time = (
                 pygame.time.get_ticks() - self.move_started_ms
@@ -236,32 +237,39 @@ class PacmanPlayer:
                     self.p_row,
                     self.p_col,
                 )
-                for ghost in ghosts:
-                    if (ghost.g_row, ghost.g_col) in \
-                            [(self.p_row, self.p_col),
-                             (self.from_row, self.from_col)]:
-                        if ghost.state == GhostState.FRIGHTENED:
-                            ghost.state = GhostState.EATEN
-                            score_gain += pacgums.dict_point["ghost"]
-                        elif ghost.state == GhostState.EATEN:
-                            pass
-                        elif ghost.state == GhostState.NORMAL and \
-                                self.CHEAT_DATA["invincible"] is False:
-                            self.life_loss()
-                            self.pacman_respawn(ghosts)
+                self.collision_check(ghosts, pacgums, score_gain)
                 if score_gain > 0 and \
-                    (pacman.p_row, pacman.p_col) in self.maze_corners:
+                        (pacman.p_row, pacman.p_col) in self.maze_corners:
                     # -------------------------------------------------------
                     # NOTE: STATO FLASH NON FUNZIONANTE - VEDI ANCHE PARSEY.PY
                     # -------------------------------------------------------
                     # RISOLTO!
-
                     for ghost in ghosts:
                         ghost.state = GhostState.FRIGHTENED
                 self._try_start_move()
         else:
             self._try_start_move()
         return score_gain
+
+    def collision_check(
+            self,
+            ghosts: list[GhostBase],
+            pacgums: PacgumsManagement,
+            score_gain: int
+            ) -> None:
+        for ghost in ghosts:
+            if (ghost.g_row, ghost.g_col) in \
+                    [(self.p_row, self.p_col),
+                        (self.from_row, self.from_col)]:
+                if ghost.state == GhostState.FRIGHTENED:
+                    ghost.state = GhostState.EATEN
+                    score_gain += pacgums.dict_point["ghost"]
+                elif ghost.state == GhostState.EATEN:
+                    pass
+                elif ghost.state == GhostState.NORMAL and \
+                        self.CHEAT_DATA["invincible"] is False:
+                    self.life_loss()
+                    self.pacman_respawn(ghosts)
 
     def debug_print(self, pacman: PacmanPlayer) -> None:
         """Print the debug."""

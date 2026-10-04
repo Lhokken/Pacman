@@ -62,7 +62,7 @@ class GhostBase:
     MOVING = True
     GHOST_MOVE_DURATION = 270
     MOVE_STARTED_MS = 0
-    
+
     def __init__(
             self,
             g_row: int,
@@ -100,7 +100,7 @@ class GhostBase:
         ghost = ghosts[0]
         gh_places = ghost.ghost_check(ghosts[1], ghosts[2], ghosts[3])
         if not hasattr(ghost, "name"):
-            ghost.name = "Blinky"
+            ghost.name = "blinky"
         row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
             row, col, = ghost.hunting(
@@ -137,7 +137,7 @@ class GhostBase:
         ghost = ghosts[1]
         gh_places = ghost.ghost_check(ghosts[0], ghosts[2], ghosts[3])
         if not hasattr(ghost, "name"):
-            ghost.name = "Clyde"
+            ghost.name = "clyde"
         row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
             row, col, = ghost.hunting(
@@ -174,7 +174,7 @@ class GhostBase:
         ghost = ghosts[2]
         gh_places = ghost.ghost_check(ghosts[0], ghosts[1], ghosts[3])
         if not hasattr(ghost, "name"):
-            ghost.name = "Inky"
+            ghost.name = "inky"
         row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
             row, col, = ghost.hunting(
@@ -211,7 +211,7 @@ class GhostBase:
         ghost = ghosts[3]
         gh_places = ghost.ghost_check(ghosts[0], ghosts[1], ghosts[2])
         if not hasattr(ghost, "name"):
-            ghost.name = "Pinky"
+            ghost.name = "pinky"
         row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
             row, col, = ghost.hunting(

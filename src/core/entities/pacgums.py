@@ -117,7 +117,7 @@ class PacgumsManagement:
 
         for ghost in ghosts:
 
-            if ghost.coord == (col, row):
+            if ghost.coord == (row, col):
                 if ghost.state is not GhostState.NORMAL:
                     logger.debug(
                         "Attempted to eat pacgum at cell occupied by ghost "
