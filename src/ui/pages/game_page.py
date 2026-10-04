@@ -40,7 +40,7 @@ from ..renderers.entity_renderer import EntityRenderer
 from ..components.hud import HUD
 from ...core.timer import Timer
 from ...core.entities.ghost import GhostBase as Ghost, GhostState
-from ...core.entities.pacman import PacmanPlayer as Player
+from ...core.entities.pacman import PacmanPlayer
 from ...core.entities.pacgums import PacgumsManagement as PacgumManager
 
 
@@ -92,9 +92,9 @@ class GamePage(Scene):
             self.maze_dim = (self.maze_height, self.maze_width)
             self.maze_corners = [
                     (0, 0),
-                    (0, self.maze_height - 1),
-                    (self.maze_width - 1, 0),
-                    (self.maze_width - 1, self.maze_height - 1),
+                    (0, self.maze_width - 1),
+                    (self.maze_height - 1, 0),
+                    (self.maze_height - 1, self.maze_width - 1),
                 ]
             # --------------------------------------------------------
             #   LAYOUT
@@ -118,22 +118,24 @@ class GamePage(Scene):
         #   GAME ENTITY
         # --------------------------------------------------------
         self.maze = self._generate_maze()
-        spawn = Player.find_spawn(self.maze)
+        spawn = PacmanPlayer.find_spawn(self.maze)
         if level == 0:
-            self.player = Player(spawn[0], spawn[1], self.maze)
+            self.player = PacmanPlayer(spawn[0], spawn[1], self.maze)
             self.current_level: int = 0
             self.level_start_reset = 7
             self.level_start: int = 0
+            self.player.maze = self.maze
             self.player.maze_dim = self.maze_dim
             self.player.maze_corners = self.maze_corners
         else:
-            self.player.p_col = spawn[1]
+            self.player.maze = self.maze
             self.player.p_row = spawn[0]
-            self.player.from_col = spawn[1]
+            self.player.p_col = spawn[1]
             self.player.from_row = spawn[0]
-            self.player.to_col = spawn[1]
+            self.player.from_col = spawn[1]
             self.player.to_row = spawn[0]
-        self.ghosts = [Ghost(x, y) for x, y in self._ghost_spawn()]
+            self.player.to_col = spawn[1]
+        self.ghosts = [Ghost(row, col) for row, col in self._ghost_spawn()]
         for ghost in self.ghosts:
             ghost.maze = self.maze
             ghost.maze_dim = self.maze_dim
@@ -272,8 +274,7 @@ class GamePage(Scene):
         remain unchanged
         """
         self.config.seed += 17
-        self.player.maze = self._generate_maze()
-        self.maze = self.player.maze
+        self.maze = self.player.maze = self._generate_maze()
         self.pacgums = PacgumManager(
             self.maze_dim,
             self.is_walkable,
@@ -281,11 +282,14 @@ class GamePage(Scene):
                 "super_pacgum": self.app.config.points_per_super_pacgum,
                 "ghost": self.config.points_per_ghost}
         )
+        self.pacgums.corners = self.maze_corners
+        # bug gomma in alto a destra talvolta non viene mangiata
         self.maze_renderer = MazeRenderer(self.maze, self.assets)
         for ghost in self.ghosts:
             ghost.g_row, ghost.g_col = ghost.corner
             ghost.state = GhostState.NORMAL
             ghost.set_timer = ghost.set_timer
+            ghost.maze = self.maze
         self.current_level += 1
         self.player.p_row, self.player.p_col = \
             self.player.from_row, self.player.from_col = \
@@ -495,20 +499,21 @@ class GamePage(Scene):
             logger.error("Maze generation failed: %s", e)
             raise RuntimeError(f"Failed to generate maze: {e}") from e
 
-    def is_walkable(self, x: int, y: int) -> bool:
-        """Indicate whether the cell `(x, y)` is walkable.
+    def is_walkable(self, row: int, col: int) -> bool:
+        """Indicate whether the cell `(row, col)` is walkable.
 
         Args:
-            x: X-coordinate of the cell (in cells).
-            y: Y-coordinate of the cell (in cells).
+            row: row coordinate of the cell (in cells).
+            col: column coordinate of the cell (in cells).
 
         Returns:
             `True` if the cell is within the boundaries and is not a solid
             wall; `False` otherwise.
         """
-        if x < 0 or y < 0 or x >= self.maze_width or y >= self.maze_height:
+        if row < 0 or col < 0 or row >= self.maze_height or \
+            col >= self.maze_width:
             return False
-        return self.maze[y][x] != 15
+        return self.maze[row][col] != 15
 
     # Private Methods ------------------------------------------------------
     # ======================================================================

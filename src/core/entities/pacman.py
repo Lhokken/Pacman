@@ -204,32 +204,37 @@ class PacmanPlayer:
                pacman: PacmanPlayer) -> int:
         """Advance movement and eat a pacgum when a move is complete."""
         score_gain = 0
-        print(ghosts[0].timer)
         if self.CHEAT_DATA["data_debug"] is True and len(pacgums.eaten) > 9:
             pacgums.all_eaten = True
-        if self.is_moving:
-            elapsed_time = (
-                pygame.time.get_ticks() - self.move_started_ms
-            )
-            if elapsed_time >= self.MOVE_DURATION_MS:
-                self.debug_print(pacman)
-                if self.CHEAT_DATA["ghost_freeze"] is False:
-                    # TODO: Ghost movement is currently advanced only when
-                    # Pacman completes a tile. Give ghosts their own timed
-                    # movement/update so their speed and interpolation do not
-                    # depend on Pacman's move duration.
+        if self.CHEAT_DATA["ghost_freeze"] is False:
+            # TODO: Ghost movement is currently advanced only when
+            # Pacman completes a tile. Give ghosts their own timed
+            # movement/update so their speed and interpolation do not
+            # depend on Pacman's move duration.
+            if self.is_moving:
+                ghost_time = (
+                    pygame.time.get_ticks() - GhostBase.MOVE_STARTED_MS
+                )
+                if ghost_time >= GhostBase.GHOST_MOVE_DURATION:
                     GhostBase.team_ghost(
                         ghosts,
                         (pacman.p_row, pacman.p_col),
                         rand=(50 + (self.level * 3)),
                         debug=self.CHEAT_DATA["data_debug"]
                         )
+        if self.is_moving:
+            elapsed_time = (
+                pygame.time.get_ticks() - self.move_started_ms
+            )
+            if elapsed_time >= self.MOVE_DURATION_MS:
+                self.debug_print(pacman)
+
                 self.is_moving = False
                 self.move_started_ms = 0
                 score_gain = pacgums.try_to_eat(
                     ghosts,
-                    unit_x=self.p_col,
-                    unit_y=self.p_row,
+                    self.p_row,
+                    self.p_col,
                 )
                 for ghost in ghosts:
                     if (ghost.g_row, ghost.g_col) in \
@@ -245,11 +250,7 @@ class PacmanPlayer:
                             self.life_loss()
                             self.pacman_respawn(ghosts)
                 if score_gain > 0 and \
-                    (pacman.p_row, pacman.p_col) in [
-                        (0, 0),
-                        (self.maze_height - 1, 0),
-                        (0, self.maze_width - 1),
-                        (self.maze_width - 1, self.maze_height - 1)]:
+                    (pacman.p_row, pacman.p_col) in self.maze_corners:
                     # -------------------------------------------------------
                     # NOTE: STATO FLASH NON FUNZIONANTE - VEDI ANCHE PARSEY.PY
                     # -------------------------------------------------------
@@ -331,9 +332,7 @@ class PacmanPlayer:
                 )
 
     def ghosts_places(self, ghosts: list[GhostBase]) -> list[tuple[int, int]]:
-        """Retrun a list of tuples.
-
-        With ghost coordinates
+        """Return a list of tuples with ghost coordinates
         """
         ghosts_list: list[tuple[int, int]] = []
         for ghost in ghosts:

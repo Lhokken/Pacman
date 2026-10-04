@@ -25,6 +25,7 @@ from collections import deque
 from typing import Deque
 import math
 import sys
+import pygame
 
 
 class Direction():
@@ -58,14 +59,22 @@ class GhostBase:
                    ghost for respawn.
     """
 
+    MOVING = True
+    GHOST_MOVE_DURATION = 270
+    MOVE_STARTED_MS = 0
+    
     def __init__(
             self,
-            g_col: int,
             g_row: int,
+            g_col: int,
             ) -> None:
         self.name: str                     # Ghost name
         self.g_row = g_row                 # Current row
         self.g_col = g_col                 # Current column
+        self.to_row = g_row
+        self.to_col = g_col
+        self.from_row = g_row
+        self.from_col = g_col
         self.coord = (g_row, g_col)
         self.direction: str | None = None  # Current direction
         self.speed = 1.0                   # Base speed
@@ -89,27 +98,32 @@ class GhostBase:
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
         ghost = ghosts[0]
-        gh_places = cls.ghost_check(ghosts[1], ghosts[2], ghosts[3])
+        gh_places = ghost.ghost_check(ghosts[1], ghosts[2], ghosts[3])
         if not hasattr(ghost, "name"):
             ghost.name = "Blinky"
         row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
-            row, col, = cls.hunting(
+            row, col, = ghost.hunting(
                 ghost.maze, rand, player_pos, row, col, ghost.maze_dim)
         elif ghost.state == GhostState.FRIGHTENED:
             row, col = cls.get_flight_run(
                 (row, col), player_pos, ghost.maze_dim, ghost.maze, rand)
-            cls.ghost_timer(ghost)
+            ghost.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            row, col = cls.eaten_mod(ghost, ghost.maze, row, col)
+            row, col = ghost.eaten_mod(ghost, ghost.maze, row, col)
         while (row, col) in gh_places:
             (row, col) = cls.next_step(
                 row, col, ghost.maze, ghost.maze_dim)
+        ghost.from_row = ghost.g_row
+        ghost.from_col = ghost.g_col
+        ghost.to_row = row
+        ghost.to_col = col
         ghost.g_row = row
         ghost.g_col = col
+        ghost.coord = (row, col)
         if debug is True:
-            cls.debug_ghost(ghost)
-        cls.get_direction(ghost, row, col)
+            ghost.debug_ghost(ghost)
+        ghost.get_direction(ghost, row, col)
 
     @classmethod  # nord est
     def clyde(
@@ -121,27 +135,32 @@ class GhostBase:
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
         ghost = ghosts[1]
-        gh_places = cls.ghost_check(ghosts[0], ghosts[2], ghosts[3])
+        gh_places = ghost.ghost_check(ghosts[0], ghosts[2], ghosts[3])
         if not hasattr(ghost, "name"):
             ghost.name = "Clyde"
         row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
-            row, col, = cls.hunting(
+            row, col, = ghost.hunting(
                 ghost.maze, rand, player_pos, row, col, ghost.maze_dim)
         elif ghost.state == GhostState.FRIGHTENED:
             row, col = cls.get_flight_run(
                 (row, col), player_pos, ghost.maze_dim, ghost.maze, rand)
-            cls.ghost_timer(ghost)
+            ghost.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            row, col = cls.eaten_mod(ghost, ghost.maze, row, col)
+            row, col = ghost.eaten_mod(ghost, ghost.maze, row, col)
         while (row, col) in gh_places:
             (row, col) = cls.next_step(
                 row, col, ghost.maze, ghost.maze_dim)
+        ghost.from_row = ghost.g_row
+        ghost.from_col = ghost.g_col
+        ghost.to_row = row
+        ghost.to_col = col
         ghost.g_row = row
         ghost.g_col = col
+        ghost.coord = (row, col)
         if debug is True:
-            cls.debug_ghost(ghost)
-        cls.get_direction(ghost, row, col)
+            ghost.debug_ghost(ghost)
+        ghost.get_direction(ghost, row, col)
 
     @classmethod  # sud ovest
     def inky(
@@ -153,27 +172,32 @@ class GhostBase:
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
         ghost = ghosts[2]
-        gh_places = cls.ghost_check(ghosts[0], ghosts[1], ghosts[3])
+        gh_places = ghost.ghost_check(ghosts[0], ghosts[1], ghosts[3])
         if not hasattr(ghost, "name"):
             ghost.name = "Inky"
         row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
-            row, col, = cls.hunting(
+            row, col, = ghost.hunting(
                 ghost.maze, rand, player_pos, row, col, ghost.maze_dim)
         elif ghost.state == GhostState.FRIGHTENED:
             row, col = cls.get_flight_run(
                 (row, col), player_pos, ghost.maze_dim, ghost.maze, rand)
-            cls.ghost_timer(ghost)
+            ghost.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            row, col = cls.eaten_mod(ghost, ghost.maze, row, col)
+            row, col = ghost.eaten_mod(ghost, ghost.maze, row, col)
         while (row, col) in gh_places:
             (row, col) = cls.next_step(
                 row, col, ghost.maze, ghost.maze_dim)
+        ghost.from_row = ghost.g_row
+        ghost.from_col = ghost.g_col
+        ghost.to_row = row
+        ghost.to_col = col
         ghost.g_row = row
         ghost.g_col = col
+        ghost.coord = (row, col)
         if debug is True:
-            cls.debug_ghost(ghost)
-        cls.get_direction(ghost, row, col)
+            ghost.debug_ghost(ghost)
+        ghost.get_direction(ghost, row, col)
 
     @classmethod  # sud est
     def pinky(
@@ -185,31 +209,35 @@ class GhostBase:
             ) -> None:
         """Manage ghost movement, chosing normal, frightened or eaten."""
         ghost = ghosts[3]
-        gh_places = cls.ghost_check(ghosts[0], ghosts[1], ghosts[2])
+        gh_places = ghost.ghost_check(ghosts[0], ghosts[1], ghosts[2])
         if not hasattr(ghost, "name"):
             ghost.name = "Pinky"
         row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
-            row, col, = cls.hunting(
+            row, col, = ghost.hunting(
                 ghost.maze, rand, player_pos, row, col, ghost.maze_dim)
         elif ghost.state == GhostState.FRIGHTENED:
             row, col = cls.get_flight_run(
                 (row, col), player_pos, ghost.maze_dim, ghost.maze, rand)
-            cls.ghost_timer(ghost)
+            ghost.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            row, col = cls.eaten_mod(ghost, ghost.maze, row, col)
+            row, col = ghost.eaten_mod(ghost, ghost.maze, row, col)
         while (row, col) in gh_places:
             (row, col) = cls.next_step(
                 row, col, ghost.maze, ghost.maze_dim)
+        ghost.from_row = ghost.g_row
+        ghost.from_col = ghost.g_col
+        ghost.to_row = row
+        ghost.to_col = col
         ghost.g_row = row
         ghost.g_col = col
+        ghost.coord = (row, col)
         if debug is True:
-            cls.debug_ghost(ghost)
-        cls.get_direction(ghost, row, col)
+            ghost.debug_ghost(ghost)
+        ghost.get_direction(ghost, row, col)
 
-    @classmethod
     def ghost_check(
-        cls,
+        self,
         ghost1: GhostBase,
         ghost2: GhostBase,
         ghost3: GhostBase) -> tuple[
@@ -224,8 +252,7 @@ class GhostBase:
             (ghost3.g_row, ghost3.g_col)
         )
 
-    @classmethod
-    def debug_ghost(cls, ghost: GhostBase) -> None:
+    def debug_ghost(self, ghost: GhostBase) -> None:
         """Simple debug method, used to monitor ghost data."""
         print(
             ghost.state,
@@ -234,9 +261,8 @@ class GhostBase:
             ghost.g_col
             )
 
-    @classmethod
     def eaten_mod(
-            cls,
+            self,
             ghost: GhostBase,
             maze: list[list[int]],
             row: int,
@@ -248,7 +274,7 @@ class GhostBase:
             ghost.state = GhostState.NORMAL
             ghost.timer = ghost.set_timer
         else:
-            result = cls.bfs(maze, ghost.corner, (row, col))
+            result = ghost.bfs(maze, ghost.corner, (row, col))
             if isinstance(result, tuple):
                 row, col = result
         return (row, col)
@@ -266,6 +292,7 @@ class GhostBase:
         cls.clyde(ghosts, player_pos, rand, debug)
         cls.inky(ghosts, player_pos, rand, debug)
         cls.pinky(ghosts, player_pos, rand, debug)
+        cls.MOVE_STARTED_MS = pygame.time.get_ticks()
 
     @classmethod
     def get_neighbours(
@@ -442,8 +469,7 @@ class GhostBase:
             row, col = cls.next_step(row, col, maze, maze_dim)
             return (row, col)
 
-    @classmethod
-    def hunting(cls,
+    def hunting(self,
                 maze: list[list[int]],
                 rand: int,
                 player_pos: tuple[int, int],
@@ -456,16 +482,15 @@ class GhostBase:
         """
         result: tuple[int, int] | bool = False
         if randint(0, 100) > rand:
-            result = cls.bfs(maze, player_pos, (row, col))
+            result = self.bfs(maze, player_pos, (row, col))
         if isinstance(result, tuple):
             row = result[0]
             col = result[1]
         else:
-            row, col = cls.next_step(row, col, maze, maze_dim)
+            row, col = self.next_step(row, col, maze, self.maze_dim)
         return (row, col)
 
-    @classmethod
-    def ghost_timer(cls, ghost: GhostBase) -> None:
+    def ghost_timer(self, ghost: GhostBase) -> None:
         """Method used to let ghosts turn back normal after set_timer."""
         ghost.timer -= 1
         if ghost.timer <= ghost.flashing_duration:
@@ -475,8 +500,7 @@ class GhostBase:
             ghost.state = GhostState.NORMAL
             ghost.flashing = False
 
-    @classmethod
-    def get_direction(cls, ghost: GhostBase, y: int, x: int) -> None:
+    def get_direction(self, ghost: GhostBase, y: int, x: int) -> None:
         """This method calculate and set ghosts movement direction."""
         y_start = ghost.g_row
         x_start = ghost.g_col

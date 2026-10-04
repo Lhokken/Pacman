@@ -60,3 +60,6 @@ Last life loss implemented, back to main menu. |
 | 2026-10-01 | *fedegugl* *gcerrete* | **BUG CRITICO** : i fantasmi se in fear mode o mangiati non lasciano a pac man mangiare |
 | 2026-10-01 | *fedegugl* | **BUG CRITICO** : i super pacgum hanno un comportamento anomalo - se mangi un super pacgum hai dei secondi a dispoizione ma se ne mangi un altro mentre i fantasmi sono in fear mode il contatore dovrebbe ripartire da capo e darti i soliti secondi. (e.g mangi sp, 30 sec concessi, ne consumi 20, nei restati 10 sec mangi un altro sp riparti da 30 sec)|
 | 2026-10-01 | *gcerrete* | Modificato pacgums, pacman, game_page, ghost. Bug dimensioni scambiate risolto. Bug timer super pacgums risolto, il timer riparte anche mangiando una superpacgum mentre i ghosts sono in fear. Risolto Bug pacgum non mangiato mentre e sovrapposto ad un ghost in frighten o fear.
+| 2026-10-02 | *gcerrete* | Analisi sul miglior modo di separare movimento pacman / ghost.
+| 2026-10-03 | *gcerrete* | Trovati e risolti altri bug su scambio dimensioni maze. Refactoring su nomi coordinate, rinominandole in row col.
+| 2026-10-04 | *gcerrete* | Separato movimento pacman dal movimento ghost. Inizio a lavorare su implementazione movimento fluido.
