@@ -235,7 +235,7 @@ class GamePage(Scene):
         if self.current_level >= 10:
             self.app.switch_scene(VictoryPage(self.app, self.score))
         if self.player.lives <= 0 or self.level_timer.remaining <= 0:
-            i: float = 0.1
+            i: float = 0.2
             while i < 3:
                 sleep(i)
                 print("\a")

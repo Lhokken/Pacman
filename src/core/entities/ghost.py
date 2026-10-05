@@ -60,7 +60,7 @@ class GhostBase:
     """
 
     MOVING = True
-    GHOST_MOVE_DURATION = 270
+    GHOST_MOVE_DURATION = 400
     MOVE_STARTED_MS = 0
 
     def __init__(
@@ -80,8 +80,8 @@ class GhostBase:
         self.speed = 1.0                   # Base speed
         self.state = GhostState.NORMAL     # Default behavioral state
         self.flashing: bool = False        # Used to show frightenind end
-        self.flashing_duration: int = 15
-        self.corner = (g_row, g_col)   # Corner cell for respawn
+        self.flashing_duration: int = 20
+        self.corner = (g_row, g_col)       # Corner cell for respawn
         self.ghosts: list[GhostBase]       # tuple[int, int] | bool = (0, 0)
         self.set_timer: int = 60
         self.timer: int = self.set_timer
@@ -114,13 +114,7 @@ class GhostBase:
         while (row, col) in gh_places:
             (row, col) = cls.next_step(
                 row, col, ghost.maze, ghost.maze_dim)
-        ghost.from_row = ghost.g_row
-        ghost.from_col = ghost.g_col
-        ghost.to_row = row
-        ghost.to_col = col
-        ghost.g_row = row
-        ghost.g_col = col
-        ghost.coord = (row, col)
+        ghost.row_col_update(row, col)
         if debug is True:
             ghost.debug_ghost(ghost)
         ghost.get_direction(ghost, row, col)
@@ -151,13 +145,7 @@ class GhostBase:
         while (row, col) in gh_places:
             (row, col) = cls.next_step(
                 row, col, ghost.maze, ghost.maze_dim)
-        ghost.from_row = ghost.g_row
-        ghost.from_col = ghost.g_col
-        ghost.to_row = row
-        ghost.to_col = col
-        ghost.g_row = row
-        ghost.g_col = col
-        ghost.coord = (row, col)
+        ghost.row_col_update(row, col)
         if debug is True:
             ghost.debug_ghost(ghost)
         ghost.get_direction(ghost, row, col)
@@ -188,13 +176,7 @@ class GhostBase:
         while (row, col) in gh_places:
             (row, col) = cls.next_step(
                 row, col, ghost.maze, ghost.maze_dim)
-        ghost.from_row = ghost.g_row
-        ghost.from_col = ghost.g_col
-        ghost.to_row = row
-        ghost.to_col = col
-        ghost.g_row = row
-        ghost.g_col = col
-        ghost.coord = (row, col)
+        ghost.row_col_update(row, col)
         if debug is True:
             ghost.debug_ghost(ghost)
         ghost.get_direction(ghost, row, col)
@@ -225,16 +207,19 @@ class GhostBase:
         while (row, col) in gh_places:
             (row, col) = cls.next_step(
                 row, col, ghost.maze, ghost.maze_dim)
-        ghost.from_row = ghost.g_row
-        ghost.from_col = ghost.g_col
-        ghost.to_row = row
-        ghost.to_col = col
-        ghost.g_row = row
-        ghost.g_col = col
-        ghost.coord = (row, col)
+        ghost.row_col_update(row, col)
         if debug is True:
             ghost.debug_ghost(ghost)
         ghost.get_direction(ghost, row, col)
+
+    def row_col_update(self, row: int, col: int) -> None:
+        self.from_row = self.g_row
+        self.from_col = self.g_col
+        self.to_row = row
+        self.to_col = col
+        self.g_row = row
+        self.g_col = col
+        self.coord = (row, col)
 
     def ghost_check(
         self,

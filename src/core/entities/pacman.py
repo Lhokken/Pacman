@@ -92,7 +92,7 @@ class PacmanPlayer:
         if self.CHEAT_DATA["extra_lives"] is True:
             self.lives += 2
         if self.CHEAT_DATA["increased_speed"] is True:
-            self.MOVE_DURATION_MS = 120
+            self.MOVE_DURATION_MS = 100
         if self.CHEAT_DATA["data_debug"] is True:
             self.debug = True
         self.queued_direction: str | None = None
@@ -147,37 +147,43 @@ class PacmanPlayer:
         )
 
     def can_move(
-        self, current_x: int, current_y: int, new_x: int, new_y: int
+        self, current_row: int, current_col: int, new_row: int, new_col: int
     ) -> bool:
         """Check whether the player may move to a target cell."""
         if (
-            new_x < 0
-            or new_y < 0
-            or new_x >= self.maze_width
-            or new_y >= self.maze_height
+            new_col < 0
+            or new_row < 0
+            or new_col >= self.maze_width
+            or new_row >= self.maze_height
         ):
             return False
-        if new_x < current_x:
+        if new_col < current_col:
             return (
-                not self._has_wall(current_x, current_y, self.WALL_LEFT)
-                and not self._has_wall(new_x, new_y, self.WALL_RIGHT)
+                not self._has_wall(current_row, current_col, self.WALL_LEFT)
+                and not self._has_wall(new_row, new_col, self.WALL_RIGHT)
             )
-        if new_x > current_x:
+        if new_col > current_col:
             return (
-                not self._has_wall(current_x, current_y, self.WALL_RIGHT)
-                and not self._has_wall(new_x, new_y, self.WALL_LEFT)
+                not self._has_wall(current_row, current_col, self.WALL_RIGHT)
+                and not self._has_wall(new_row, new_col, self.WALL_LEFT)
             )
-        if new_y < current_y:
+        if new_row < current_row:
             return (
-                not self._has_wall(current_x, current_y, self.WALL_TOP)
-                and not self._has_wall(new_x, new_y, self.WALL_BOTTOM)
+                not self._has_wall(current_row, current_col, self.WALL_TOP)
+                and not self._has_wall(new_row, new_col, self.WALL_BOTTOM)
             )
-        if new_y > current_y:
+        if new_row > current_row:
             return (
-                not self._has_wall(current_x, current_y, self.WALL_BOTTOM)
-                and not self._has_wall(new_x, new_y, self.WALL_TOP)
+                not self._has_wall(current_row, current_col, self.WALL_BOTTOM)
+                and not self._has_wall(new_row, new_col, self.WALL_TOP)
             )
         return False
+
+    def _has_wall(self, row: int, col: int, wall_bit: int) -> bool:
+        if col < 0 or row < 0 or col >= self.maze_width or \
+                row >= self.maze_height:
+            return True
+        return (self.maze[row][col] & wall_bit) != 0
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """Store a movement request from a keyboard event."""
@@ -245,7 +251,10 @@ class PacmanPlayer:
                     # -------------------------------------------------------
                     # RISOLTO!
                     for ghost in ghosts:
-                        ghost.state = GhostState.FRIGHTENED
+                        if ghost.state is not GhostState.EATEN:
+                            ghost.state = GhostState.FRIGHTENED
+                            ghost.flashing = False
+                            ghost.timer = ghost.set_timer
                 self._try_start_move()
         else:
             self._try_start_move()
@@ -291,36 +300,31 @@ class PacmanPlayer:
         if direction is None:
             return
 
-        dx, dy = 0, 0
+        d_row, d_col = 0, 0
         if direction == "up":
-            dy = -1
+            d_row = -1
         elif direction == "down":
-            dy = 1
+            d_row = 1
         elif direction == "left":
-            dx = -1
+            d_col = -1
         elif direction == "right":
-            dx = 1
+            d_col = 1
 
-        current_x = self.p_col
-        current_y = self.p_row
-        new_x = current_x + dx
-        new_y = current_y + dy
+        current_row = self.p_row
+        current_col = self.p_col
+        new_row = current_row + d_row
+        new_col = current_col + d_col
 
-        if self.can_move(current_x, current_y, new_x, new_y):
-            self.from_col = current_x
-            self.from_row = current_y
-            self.to_col = new_x
-            self.to_row = new_y
-            self.p_col = new_x
-            self.p_row = new_y
+        if self.can_move(current_row, current_col, new_row, new_col):
+            self.from_row = current_row
+            self.from_col = current_col
+            self.to_row = new_row
+            self.to_col = new_col
+            self.p_row = new_row
+            self.p_col = new_col
             self.is_moving = True
             self.direction = direction
             self.move_started_ms = pygame.time.get_ticks()
-
-    def _has_wall(self, x: int, y: int, wall_bit: int) -> bool:
-        if x < 0 or y < 0 or x >= self.maze_width or y >= self.maze_height:
-            return True
-        return (self.maze[y][x] & wall_bit) != 0
 
     def pacman_respawn(self, ghosts: list[GhostBase]) -> None:
         """Give each ghost a random position in the maze.
@@ -330,7 +334,8 @@ class PacmanPlayer:
         for i, _ in enumerate(ghosts):
             while GhostBase.get_distance(
                     (ghosts[i].g_row, ghosts[i].g_col),
-                    self.respawn) < 7 or \
+                    self.respawn) < round(
+                        (self.maze_height + self.maze_width) / 3.5) or \
                         len(set(self.ghosts_places(ghosts))) != 4:
                 (ghosts[i].g_row, ghosts[i].g_col) = GhostBase.next_step(
                     ghosts[i].g_row,

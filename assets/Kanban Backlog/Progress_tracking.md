@@ -66,3 +66,4 @@ Last life loss implemented, back to main menu. |
 | 2026-10-01 | *fedegugl* | **REFACTORING** : allineamento delle title del maze. dimensioni allineate a 64 x 64 |
 | 2026-10-02 | *fedegugl* | **BUG CRITICO** : il render del maze non ha rispettato le specifiche: refactoring per eviatre doppie stampe |
 | 2026-10-03 | *fedegugl* | Risolto bug doppia stampa, aggiunto togle fullscreem, aggiornato asset managwer per allinearsi alla nuova logica di generazione |
+| 2026-10-05 | *gcerrete* | Ghost fluid movement function correctly. Debugging. Minor bugs fixed.
