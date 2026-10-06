@@ -241,7 +241,7 @@ class GamePage(Scene):
                 print("\a")
                 i = i * 1.5
             # TODO: LOGIC pending - Raccolta dati reali del user
-            self.app.switch_scene(GameOverPage(self.app, score=123))
+            self.app.switch_scene(GameOverPage(self.app, score=self.score))
 
         # CHEATING - extra lifes -------------------------------------
         if self.player.CHEAT_DATA["extra_lives"] is True:
@@ -297,7 +297,7 @@ class GamePage(Scene):
         for ghost in self.ghosts:
             ghost.g_row, ghost.g_col = ghost.corner
             ghost.state = GhostState.NORMAL
-            ghost.set_timer = ghost.set_timer
+            ghost.timer = ghost.set_timer
             ghost.maze = self.maze
         self.current_level += 1
         self.player.p_row, self.player.p_col = \

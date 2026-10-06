@@ -90,8 +90,8 @@ class PacgumsManagement:
         ):
             logger.debug(
                 "Attempted to eat pacgum out of bounds at (%d, %d)",
-                col,
                 row,
+                col,
             )
             return 0
 
@@ -99,8 +99,8 @@ class PacgumsManagement:
         if not self.walkable_fn(row, col):
             logger.debug(
                 "Attempted to eat pacgum at non-walkable cell (%d, %d)",
-                col,
                 row,
+                col,
             )
             return 0
 
@@ -108,8 +108,8 @@ class PacgumsManagement:
         if (col, row) in self.eaten:
             logger.debug(
                 "Attempted to eat already eaten pacgum at (%d, %d)",
-                col,
                 row,
+                col,
             )
             return 0
 
@@ -122,8 +122,8 @@ class PacgumsManagement:
                     logger.debug(
                         "Attempted to eat pacgum at cell occupied by ghost "
                         "(%d, %d)",
-                        col,
                         row,
+                        col,
                     )
                     return 0
 
@@ -132,13 +132,14 @@ class PacgumsManagement:
         if (row, col) in self.corners:
             GhostBase.frighten_ghosts(ghosts)
             turn_score = self.dict_point["super_pacgum"]
-        turn_score = self.dict_point["pacgum"]
+        else:
+            turn_score = self.dict_point["pacgum"]
         if len(self.eaten) == (self.maze_width * self.maze_height) - 18:
             self.all_eaten = True
         logger.debug(
             "Pacgum eaten at (%d, %d). Score increased: %d",
-            col,
             row,
+            col,
             len(self.eaten),
         )
         return turn_score
