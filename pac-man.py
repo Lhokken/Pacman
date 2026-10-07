@@ -13,6 +13,7 @@ import logging
 import sys
 import atexit
 import pygame
+import json
 
 from src.cli.cli import CLIApplication
 from src.cli.cli_error_handler import CLIErrorHandler
@@ -64,6 +65,12 @@ class GameEntry:
 
         # 5. Avvia la grafica
         game = GameApp(config)
+
+        try:
+            with open("highscore.txt", mode="r", encoding="utf-8") as savefile:
+                game.HIGHSCORE = json.load(savefile)
+        except Exception as e:
+            print(e)
         game.run()
 
 

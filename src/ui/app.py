@@ -40,7 +40,6 @@ class GameApp:
         font_manager  : Fonts shared across all scenes.
         current_scene : Currently active scene.
     """
-
     HIGHSCORE: dict[str, int] = {}
     ASSETS_TILE_SIZE = 40
     ASSETS_SUBDIR = ("assets", "img")
@@ -107,7 +106,6 @@ class GameApp:
         """
         self.config = config
         self.debug = debug
-
         if not config.levels:
             raise RuntimeError(
                 "Configuration contains no levels. Cannot start game."

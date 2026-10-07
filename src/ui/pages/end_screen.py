@@ -23,6 +23,7 @@ Saving:
 from __future__ import annotations
 
 import logging
+import json
 from abc import ABC
 from typing import TYPE_CHECKING
 
@@ -344,12 +345,11 @@ class EndScreenPage(Scene, ABC):
             #     save(name, self.score)
             #     print("-----", save)
             self.app.HIGHSCORE[name] = self.score
-            """TODO sort highscore"""
+
             temp_score: list[tuple[int, str]] = ([])
             for key, value in self.app.HIGHSCORE.items():
                 temp_score.append((value, key))
             temp_score = sorted(temp_score)
-            self.app.HIGHSCORE = {}
             for value, key in temp_score[::-1]:
                 self.app.HIGHSCORE[key] = value
             if len(self.app.HIGHSCORE) > 10:
@@ -360,6 +360,11 @@ class EndScreenPage(Scene, ABC):
                 "(no save_highscore on app)",
                 name, self.score,
             )
+        try:
+            with open("highscore.txt", mode="w", encoding="utf-8") as savefile:
+                json.dump(self.app.HIGHSCORE, savefile)
+        except Exception as e:
+            print(e)
         self._submitted = True
         self._go_back()
 
