@@ -181,11 +181,7 @@ class EntityRenderer:
     def draw_ghosts(
         self,
         screen: Surface,
-        origin_x: int,
-        origin_y: int,
-        tile_size: int,
         ghost_infos: list[dict],
-        *,
         frightened_flash: bool = False,
     ) -> None:
         """Draw the ghosts using rich descriptors.
@@ -202,30 +198,13 @@ class EntityRenderer:
             frightened_flash   : True during the final of the power pellet:
                                  use "fear_flash" frames instead of "fear".
         """
-        half = tile_size // 2
         for info in ghost_infos:
-
             img = (
                 self._pick_ghost_frame(info, frightened_flash)
             )
-
             if img is None:
                 continue
-
-            cx = info["x"]
-            cy = info["y"]
-
-            # cx = (
-            #     round(
-            #         origin_x + info["x"] * tile_size + half
-            #     )
-            # )
-            # cy = (
-            #     round(
-            #         origin_y + info["y"] * tile_size + half
-            #     )
-            # )
-            self._draw_centered(screen, img, cx, cy)
+            self._draw_centered(screen, img, info["x"], info["y"])
 
     def _pick_ghost_frame(
         self,

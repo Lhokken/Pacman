@@ -245,27 +245,40 @@ class HighScorePage(Scene):
         Returns:
             A list of `(rank, name, score)` tuples of length `MIN_ROWS`.
         """
-        store = (
-            getattr(self.app, "highscore_store", None)
-        )
-        entries = (
-            store.top(self.MIN_ROWS) if store is not None else []
-        )
-        # -------------------------------------------------------------
+        # store = (
+        #     getattr(self.app, "highscore_store", None)
+        # )
+        # entries = (
+        #     store.top(self.MIN_ROWS) if store is not None else []
+        # )
+        # # -------------------------------------------------------------
+        # # Lista dei Nomi delle persone.
+        # # -------------------------------------------------------------
+        # rows: list[tuple[str, str, str]] = []
+        # for i in range(self.MIN_ROWS):
+        #     rank = str(i + 1)
+        #     if i < len(entries):
+        #         e = entries[i]
+        #         rows.append((rank, e.name, str(e.score)))
+        #     else:
+        #         rows.append((
+        #             rank,
+        #             self.PLACEHOLDER_NAME,
+        #             self.PLACEHOLDER_SCORE,
+        #         ))
+        # ---------------------------------------------
         # Lista dei Nomi delle persone.
         # -------------------------------------------------------------
         rows: list[tuple[str, str, str]] = []
-        for i in range(self.MIN_ROWS):
+        for i, key in enumerate(self.app.HIGHSCORE):
             rank = str(i + 1)
-            if i < len(entries):
-                e = entries[i]
-                rows.append((rank, e.name, str(e.score)))
-            else:
-                rows.append((
-                    rank,
-                    self.PLACEHOLDER_NAME,
-                    self.PLACEHOLDER_SCORE,
-                ))
+            rows.append((rank, key, str(self.app.HIGHSCORE[key])))
+        while len(rows) < 10:
+            rows.append((
+                str(len(rows) + 1),
+                self.PLACEHOLDER_NAME,
+                self.PLACEHOLDER_SCORE,
+            ))
         return rows
 
     # ==================================================================

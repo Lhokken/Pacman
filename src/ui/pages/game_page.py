@@ -239,7 +239,7 @@ class GamePage(Scene):
             while i < 3:
                 sleep(i)
                 print("\a")
-                i = i * 1.5
+                i = i * 4
             # TODO: LOGIC pending - Raccolta dati reali del user
             self.app.switch_scene(GameOverPage(self.app, score=self.score))
 
@@ -372,7 +372,7 @@ class GamePage(Scene):
 
         # RIPRISTINATO: la chiave e di fatto dove dovrebbe essere
         self.entity_renderer.draw_ghosts(
-            screen, ox, oy, self.tile_size, ghost_infos,
+            screen, ghost_infos,
             frightened_flash=self._is_frightened_flash(),
         )
         # ------------------------------------------------------------
@@ -556,8 +556,6 @@ class GamePage(Scene):
         Returns:
             Una lista di dict con le chiavi attese dal renderer.
         """
-        names_fallback = ("blinky", "pinky", "inky", "clyde")
-
         tile = self.tile_size
         half = tile // 2
         origin_col, origin_row = self.metrics.maze_origin

@@ -60,7 +60,7 @@ class GhostBase:
     """
 
     MOVING = True
-    GHOST_MOVE_DURATION = 400
+    GHOST_MOVE_DURATION = 800
     MOVE_STARTED_MS = 0
 
     def __init__(

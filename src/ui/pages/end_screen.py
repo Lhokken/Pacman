@@ -339,15 +339,27 @@ class EndScreenPage(Scene, ABC):
             return
         name = self._name.strip().upper()
         if name:
-            save = getattr(self.app, "save_highscore", None)
-            if callable(save):
-                save(name, self.score)
-            else:
-                logger.info(
-                    "Name entry: name=%s score=%d "
-                    "(no save_highscore on app)",
-                    name, self.score,
-                )
+            # save = getattr(self.app, "save_highscore", None)
+            # if save:
+            #     save(name, self.score)
+            #     print("-----", save)
+            self.app.HIGHSCORE[name] = self.score
+            """TODO sort highscore"""
+            temp_score: list[tuple[int, str]] = ([])
+            for key, value in self.app.HIGHSCORE.items():
+                temp_score.append((value, key))
+            temp_score = sorted(temp_score)
+            self.app.HIGHSCORE = {}
+            for value, key in temp_score[::-1]:
+                self.app.HIGHSCORE[key] = value
+            if len(self.app.HIGHSCORE) > 10:
+                self.app.HIGHSCORE.popitem()
+        else:
+            logger.info(
+                "Name entry: name=%s score=%d "
+                "(no save_highscore on app)",
+                name, self.score,
+            )
         self._submitted = True
         self._go_back()
 
@@ -359,7 +371,6 @@ class EndScreenPage(Scene, ABC):
 
 class GameOverPage(EndScreenPage):
     """Scene shown when the game is over."""
-
     TITLE_TEXT = "Game Over"
     MESSAGE_TEXT = ""
     SHOW_CREDITS = True
@@ -367,7 +378,6 @@ class GameOverPage(EndScreenPage):
 
 class VictoryPage(EndScreenPage):
     """Scene shown when the player wins."""
-
     TITLE_TEXT = "Victory!"
     MESSAGE_TEXT = "You have cleared all the levels!"
     SHOW_CREDITS = True

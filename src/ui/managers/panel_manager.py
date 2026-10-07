@@ -173,4 +173,7 @@ class PanelManager:
         # ----------------------------------------------------------------------
         self.update_score(0)
         self.update_lives(3)
-        self.update_highscore(0)
+        from ..app import GameApp
+        for value in GameApp.HIGHSCORE.values():
+            self.highscore_panel.update_highscore(value)
+            break

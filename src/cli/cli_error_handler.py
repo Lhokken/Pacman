@@ -14,6 +14,7 @@ import sys
 import traceback
 
 from typing import Any, Callable, TypeVar
+from types import TracebackType
 
 import pygame
 
@@ -72,7 +73,7 @@ class CLIErrorHandler:
         def handle_exception(
             exc_type: type[BaseException],
             exc_value: BaseException,
-            exc_tb,
+            exc_tb: TracebackType | None,
         ) -> None:
             # Lascia passare KeyboardInterrupt e SystemExit.
             if issubclass(
@@ -196,7 +197,7 @@ class CLIErrorHandler:
     def _report_unhandled(
         self,
         error: BaseException,
-        exc_tb,
+        exc_tb: TracebackType | None,
     ) -> None:
         """Log an exception that escaped every try/except.
 

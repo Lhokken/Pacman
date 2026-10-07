@@ -39,7 +39,7 @@ class MazeRenderer:
     # =========================================================================
     def draw(
         self,
-        screen: pygame.Surface,
+        screen: pygame.surface.Surface,
         origin_x: int,
         origin_y: int,
         tile_size: int,
@@ -60,9 +60,9 @@ class MazeRenderer:
     # ------------------------------------------------------------------
     def _draw_walls(
         self,
-        screen: pygame.Surface,
-        origin_x: int,
-        origin_y: int,
+        screen: pygame.surface.Surface,
+        zero_x: int,
+        zero_y: int,
         tile_size: int,
         wall_masks: list[list[int]],
     ) -> None:
@@ -89,7 +89,7 @@ class MazeRenderer:
                     for name in connector_names:
                         screen.blit(
                             connectors[name],
-                            (origin_x + x * tile_size, origin_y + y * tile_size),
+                            (zero_x + x * tile_size, zero_y + y * tile_size),
                         )
                     continue
 
@@ -98,7 +98,7 @@ class MazeRenderer:
                     continue
                 screen.blit(
                     tile,
-                    (origin_x + x * tile_size, origin_y + y * tile_size),
+                    (zero_x + x * tile_size, zero_y + y * tile_size),
                 )
 
     def _get_border_connector_names(
@@ -121,7 +121,7 @@ class MazeRenderer:
     # ------------------------------------------------------------------
     def _draw_intersections(
         self,
-        screen: pygame.Surface,
+        screen: pygame.surface.Surface,
         origin_x: int,
         origin_y: int,
         tile_size: int,
@@ -148,7 +148,7 @@ class MazeRenderer:
     # ------------------------------------------------------------------
     def _draw_border(
         self,
-        screen: pygame.Surface,
+        screen: pygame.surface.Surface,
         origin_x: int,
         origin_y: int,
         tile_size: int,

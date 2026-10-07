@@ -296,6 +296,7 @@ class HighscorePanel(ValuePanel):
             font_value,
             font_title
         )
+        """TODO: syncro highscore with json savefile"""
         self.highscore = 0
 
     # Pubblic Methods ---------------------------------------------------------
