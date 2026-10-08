@@ -134,14 +134,16 @@ class PacmanPlayer:
         maze_width = len(maze[0]) if maze else 0
         center_col = maze_width // 2
         center_row = maze_height // 2
-        for offset in range(1, maze_height - center_row):
+        row = 0
+        col = 0
+        for offset in range(-1, +1):
             row = center_row + offset
             if maze[row][center_col] != 15:
                 return row, center_col
-        for offset in range(1, center_row + 1):
-            row = center_row - offset
-            if maze[row][center_col] != 15:
-                return row, center_col
+        for offset in range(-1, + 1):
+            col = center_col + offset
+            if maze[row][col] != 15:
+                return row, col
         raise RuntimeError(
             "No walkable cell found near center for player spawn"
         )
