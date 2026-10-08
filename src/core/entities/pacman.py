@@ -238,12 +238,12 @@ class PacmanPlayer:
 
                 self.is_moving = False
                 self.move_started_ms = 0
-                score_gain = pacgums.try_to_eat(
+                score_gain += pacgums.try_to_eat(
                     ghosts,
                     self.p_row,
                     self.p_col,
                 )
-                self.collision_check(ghosts, pacgums, score_gain)
+                score_gain += self.collision_check(ghosts, pacgums, score_gain)
                 if score_gain > 0 and \
                         (pacman.p_row, pacman.p_col) in self.maze_corners:
                     # -------------------------------------------------------
@@ -265,7 +265,7 @@ class PacmanPlayer:
             ghosts: list[GhostBase],
             pacgums: PacgumsManagement,
             score_gain: int
-            ) -> None:
+            ) -> int:
         for ghost in ghosts:
             if (ghost.g_row, ghost.g_col) in \
                     [(self.p_row, self.p_col),
@@ -279,6 +279,7 @@ class PacmanPlayer:
                         self.CHEAT_DATA["invincible"] is False:
                     self.life_loss()
                     self.pacman_respawn(ghosts)
+        return score_gain
 
     def debug_print(self, pacman: PacmanPlayer) -> None:
         """Print the debug."""

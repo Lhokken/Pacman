@@ -262,7 +262,8 @@ class GamePage(Scene):
         if self.pacgums.all_eaten is True:
             self.next_level()
         self._frame += 1
-        self.metrics: GamePageMetrics = self._layout.compute(
+
+        self.metrics = self._layout.compute(
             *self.app.screen.get_size(),
             self.maze_width,
             self.maze_height,
@@ -289,9 +290,12 @@ class GamePage(Scene):
         if self.current_level >= len(self.config.levels) - 1:
             self.app.switch_scene(VictoryPage(self.app, self.score))
         self.player.level = self.current_level
-        self.player.maze_height = self.maze_height = self.config.levels[self.current_level].height
-        self.player.maze_width = self.maze_width = self.config.levels[self.current_level].width
-        self.player.maze_dim = self.maze_dim = (self.maze_height, self.maze_width)
+        self.player.maze_height = self.maze_height = \
+            self.config.levels[self.current_level].height
+        self.player.maze_width = self.maze_width = \
+            self.config.levels[self.current_level].width
+        self.player.maze_dim = self.maze_dim = \
+            (self.maze_height, self.maze_width)
         self.maze_corners = [
             (0, 0),
             (0, self.maze_width - 1),
@@ -304,8 +308,7 @@ class GamePage(Scene):
         self.player.p_row, self.player.p_col = \
             self.player.from_row, self.player.from_col = \
             self.player.to_row, self.player.to_col = \
-                PacmanPlayer.find_spawn(self.maze)
-
+            PacmanPlayer.find_spawn(self.maze)
 
         self.pacgums = PacgumManager(
             self.maze_dim,
@@ -326,7 +329,6 @@ class GamePage(Scene):
             ghost.timer = ghost.set_timer
             ghost.maze = self.maze
             ghost.maze_dim = self.maze_dim
-
 
         self.level_timer.reset(self.DEFAULT_LEVEL_DURATION_S)
         self.level_start = self.level_start_reset
