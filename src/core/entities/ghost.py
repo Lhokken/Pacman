@@ -502,5 +502,6 @@ class GhostBase:
     def frighten_ghosts(cls, ghosts: list[GhostBase]) -> None:
         """Simple method to set all ghosts to frightened."""
         for ghost in ghosts:
-            ghost.state = GhostState.FRIGHTENED
-            ghost.timer = ghost.set_timer
+            if ghost.state is not GhostState.EATEN:
+                ghost.state = GhostState.FRIGHTENED
+                ghost.timer = ghost.set_timer
