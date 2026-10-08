@@ -70,7 +70,7 @@ class GameEntry:
             with open("highscore.txt", mode="r", encoding="utf-8") as savefile:
                 game.HIGHSCORE = json.load(savefile)
         except Exception as e:
-            print(e)
+            print(f"highscore.txt loading error: {e}")
         game.run()
 
 
