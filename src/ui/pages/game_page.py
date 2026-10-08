@@ -232,8 +232,8 @@ class GamePage(Scene):
         side panel if the score has changed.
         """
         # UPDATE DEAD_STATUS -----------------------------------------
-        if self.current_level >= 10:
-            self.app.switch_scene(VictoryPage(self.app, self.score))
+        # if self.current_level > 8:
+        #     self.app.switch_scene(VictoryPage(self.app, self.score))
         if self.player.lives <= 0 or self.level_timer.remaining <= 0:
             i: float = 0.2
             while i < 3:
@@ -262,6 +262,11 @@ class GamePage(Scene):
         if self.pacgums.all_eaten is True:
             self.next_level()
         self._frame += 1
+        self.metrics: GamePageMetrics = self._layout.compute(
+            *self.app.screen.get_size(),
+            self.maze_width,
+            self.maze_height,
+        )
 
     def level_notifier(self) -> None:
         """Play an audio notification for Pac-Man life loss.
@@ -280,8 +285,28 @@ class GamePage(Scene):
         This occurs after eating all pacgums, pacman lives and score
         remain unchanged
         """
+        self.current_level += 1
+        if self.current_level >= len(self.config.levels) - 1:
+            self.app.switch_scene(VictoryPage(self.app, self.score))
+        self.player.level = self.current_level
+        self.player.maze_height = self.maze_height = self.config.levels[self.current_level].height
+        self.player.maze_width = self.maze_width = self.config.levels[self.current_level].width
+        self.player.maze_dim = self.maze_dim = (self.maze_height, self.maze_width)
+        self.maze_corners = [
+            (0, 0),
+            (0, self.maze_width - 1),
+            (self.maze_height - 1, 0),
+            (self.maze_height - 1, self.maze_width - 1),
+        ]
         self.config.seed += 17
         self.maze = self.player.maze = self._generate_maze()
+
+        self.player.p_row, self.player.p_col = \
+            self.player.from_row, self.player.from_col = \
+            self.player.to_row, self.player.to_col = \
+                PacmanPlayer.find_spawn(self.maze)
+
+
         self.pacgums = PacgumManager(
             self.maze_dim,
             self.is_walkable,
@@ -294,16 +319,15 @@ class GamePage(Scene):
         # INTEGRAZIONE: risolto a monte dal fix di `maze_corners` /
         # `is_walkable`. Il commento resta come promemoria.
         self.maze_renderer = MazeRenderer(self.maze, self.assets)
-        for ghost in self.ghosts:
+        for i, ghost in enumerate(self.ghosts):
+            ghost.corner = self.maze_corners[i]
             ghost.g_row, ghost.g_col = ghost.corner
             ghost.state = GhostState.NORMAL
             ghost.timer = ghost.set_timer
             ghost.maze = self.maze
-        self.current_level += 1
-        self.player.p_row, self.player.p_col = \
-            self.player.from_row, self.player.from_col = \
-            self.player.to_row, self.player.to_col = self.player.respawn
-        self.player.level = self.current_level
+            ghost.maze_dim = self.maze_dim
+
+
         self.level_timer.reset(self.DEFAULT_LEVEL_DURATION_S)
         self.level_start = self.level_start_reset
 
