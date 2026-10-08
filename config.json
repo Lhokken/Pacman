@@ -1,164 +1,61 @@
 {
     "highscore_filename": "highscores.json",
     "lives": 3,
-    "extra_life_score": 10000,
-    "pacgum": 42,
     "points_per_pacgum": 10,
     "points_per_super_pacgum": 50,
     "points_per_ghost": 200,
-    "ghost_combo_multiplier": [200, 400, 800, 1600],
     "seed": 42,
     "level_max_time": 110,
     "levels": [
         {
             "level_num": 1,
             "width": 19,
-            "height": 15,
-            "mode_phases": [
-                {"mode": "scatter", "duration": 7},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 7},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": -1}
-            ]
+            "height": 15
         },
         {
             "level_num": 2,
-            "width": 21,
-            "height": 21,
-            "mode_phases": [
-                {"mode": "scatter", "duration": 7},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 7},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": -1}
-            ]
+            "width": 16,
+            "height": 17
         },
         {
             "level_num": 3,
-            "width": 21,
-            "height": 21,
-            "mode_phases": [
-                {"mode": "scatter", "duration": 7},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 7},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": -1}
-            ]
+            "width": 17,
+            "height": 15
         },
         {
             "level_num": 4,
-            "width": 21,
-            "height": 21,
-            "mode_phases": [
-                {"mode": "scatter", "duration": 7},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 7},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": -1}
-            ]
+            "width": 16,
+            "height": 16
         },
         {
             "level_num": 5,
-            "width": 21,
-            "height": 21,
-            "mode_phases": [
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": -1}
-            ]
+            "width": 15,
+            "height": 15
         },
         {
             "level_num": 6,
-            "width": 21,
-            "height": 21,
-            "mode_phases": [
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": -1}
-            ]
+            "width": 18,
+            "height": 14
         },
         {
             "level_num": 7,
-            "width": 21,
-            "height": 21,
-            "mode_phases": [
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": -1}
-            ]
+            "width": 17,
+            "height": 16
         },
         {
             "level_num": 8,
-            "width": 21,
-            "height": 21,
-            "mode_phases": [
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": -1}
-            ]
+            "width": 17,
+            "height": 17
         },
         {
             "level_num": 9,
-            "width": 21,
-            "height": 21,
-            "mode_phases": [
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": -1}
-            ]
+            "width": 16,
+            "height": 15
         },
         {
             "level_num": 10,
-            "width": 21,
-            "height": 21,
-            "mode_phases": [
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": 20},
-                {"mode": "scatter", "duration": 5},
-                {"mode": "chase", "duration": -1}
-            ]
+            "width": 18,
+            "height": 16
         }
     ]
 }

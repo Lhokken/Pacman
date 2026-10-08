@@ -571,7 +571,9 @@ class GamePage(Scene):
                     pygame.time.get_ticks() - Ghost.MOVE_STARTED_MS
                 )
                 progress = (
-                    min(elapsed / Ghost.GHOST_MOVE_DURATION, 1.0)
+                    min(elapsed / (
+                        Ghost.GHOST_MOVE_DURATION - (
+                            self.current_level * 50)), 1.0)
                 )
 
                 from_col = origin_col + ghost.from_col * tile + half
