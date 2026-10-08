@@ -346,10 +346,11 @@ class EndScreenPage(Scene, ABC):
             #     print("-----", save)
             self.app.HIGHSCORE[name] = self.score
 
-            temp_score: list[tuple[int, str]] = ([])
+            temp_score: list[tuple[int, str]] = []
             for key, value in self.app.HIGHSCORE.items():
                 temp_score.append((value, key))
             temp_score = sorted(temp_score)
+            self.app.HIGHSCORE = {}
             for value, key in temp_score[::-1]:
                 self.app.HIGHSCORE[key] = value
             if len(self.app.HIGHSCORE) > 10:
