@@ -80,10 +80,10 @@ class GhostBase:
         self.speed = 1.0                   # Base speed
         self.state = GhostState.NORMAL     # Default behavioral state
         self.flashing: bool = False        # Used to show frightenind end
-        self.flashing_duration: int = 20
+        self.flashing_duration: int = 10
         self.corner = (g_row, g_col)       # Corner cell for respawn
         self.ghosts: list[GhostBase]       # tuple[int, int] | bool = (0, 0)
-        self.set_timer: int = 60
+        self.set_timer: int = 30
         self.timer: int = self.set_timer
         self.maze: list[list[int]]
         self.maze_dim: tuple[int, int]

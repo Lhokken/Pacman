@@ -364,6 +364,5 @@ class PacmanPlayer:
         """
         print("\a")
         self.lives -= 1
-        if self.lives > 0:
-            self.p_row, self.p_col = self.from_row, self.from_col = \
-                self.to_row, self.to_col = self.respawn
+        if self.lives >= 0:
+            self.p_row, self.p_col = self.find_spawn(self.maze)

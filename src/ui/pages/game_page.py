@@ -234,12 +234,12 @@ class GamePage(Scene):
         # UPDATE DEAD_STATUS -----------------------------------------
         # if self.current_level > 8:
         #     self.app.switch_scene(VictoryPage(self.app, self.score))
-        if self.player.lives <= 0 or self.level_timer.remaining <= 0:
+        if self.player.lives <= -1 or self.level_timer.remaining <= 0:
             i: float = 0.2
             while i < 3:
                 sleep(i)
                 print("\a")
-                i = i * 4
+                i = i * 5
             # TODO: LOGIC pending - Raccolta dati reali del user
             self.app.switch_scene(GameOverPage(self.app, score=self.score))
 
@@ -326,7 +326,7 @@ class GamePage(Scene):
             ghost.corner = self.maze_corners[i]
             ghost.g_row, ghost.g_col = ghost.corner
             ghost.state = GhostState.NORMAL
-            ghost.timer = ghost.set_timer
+            ghost.timer = ghost.set_timer - self.current_level
             ghost.maze = self.maze
             ghost.maze_dim = self.maze_dim
 
@@ -599,7 +599,7 @@ class GamePage(Scene):
                 progress = (
                     min(elapsed / (
                         Ghost.GHOST_MOVE_DURATION - (
-                            self.current_level * 50)), 1.0)
+                            self.current_level * 60)), 1.0)
                 )
 
                 from_col = origin_col + ghost.from_col * tile + half
