@@ -250,8 +250,6 @@ class GamePage(Scene):
             if self.player.lives > 3:
                 self.player.lives = 3
 
-        while self.level_start > 0:
-            self.level_notifier()
         score_gain = self.player.update(
             self.ghosts, self.pacgums, self.player
         )
@@ -268,6 +266,7 @@ class GamePage(Scene):
             self.maze_width,
             self.maze_height,
         )
+        self.level_notifier()
 
     def level_notifier(self) -> None:
         """Play an audio notification for Pac-Man life loss.
@@ -275,10 +274,11 @@ class GamePage(Scene):
         When a Pac-Man life is lost, the user receives an audio
         notification.
         """
-        print("\a")
-        sleep(self.level_start / 20)
-        self.level_start = int(self.level_start)
-        self.level_start -= 1
+        while self.level_start > 0:
+            print("\a")
+            sleep(self.level_start / 20)
+            self.level_start = int(self.level_start)
+            self.level_start -= 1
 
     def next_level(self) -> None:
         """Set all data in order to begin a new game level.

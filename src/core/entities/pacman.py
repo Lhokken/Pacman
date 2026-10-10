@@ -11,6 +11,7 @@ import logging
 import pygame
 from src.core.entities.ghost import GhostBase, GhostState
 from typing import TYPE_CHECKING
+from random import randint
 
 if TYPE_CHECKING:
     from src.core.entities.pacgums import PacgumsManagement
@@ -130,20 +131,20 @@ class PacmanPlayer:
     @staticmethod
     def find_spawn(maze: list[list[int]]) -> tuple[int, int]:
         """Find a walkable cell close to the maze center."""
-        maze_height = len(maze)
-        maze_width = len(maze[0]) if maze else 0
-        center_col = maze_width // 2
-        center_row = maze_height // 2
-        row = 0
-        col = 0
-        for offset in range(-1, +1):
-            row = center_row + offset
-            if maze[row][center_col] != 15:
-                return row, center_col
-        for offset in range(-1, + 1):
-            col = center_col + offset
-            if maze[row][col] != 15:
-                return row, col
+        if len(maze) < 5:
+            raise RuntimeError("Maze too small")
+        row = int((len(maze) - 5) / 2) + 2
+        col = int((len(maze[0]) - 7) / 2) + 3
+        if maze[row][col] != 15:
+            return row, col
+        else:
+            for _ in range(0, 42):
+                row = row + randint(-1, 1)
+                if maze[row][col] != 15:
+                    return row, col
+                col = col + randint(-1, 1)
+                if maze[row][col] != 15:
+                    return row, col
         raise RuntimeError(
             "No walkable cell found near center for player spawn"
         )
