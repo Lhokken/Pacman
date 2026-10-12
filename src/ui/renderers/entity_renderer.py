@@ -106,7 +106,7 @@ class EntityRenderer:
 
         for y, row in enumerate(maze):
             for x, _cell in enumerate(row):
-                if (x, y) in occupied or (x, y) in eaten_pacgums:
+                if (x, y) in occupied or (y, x) in eaten_pacgums:
                     continue
                 if not self._is_walkable(x, y, maze):
                     continue

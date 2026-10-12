@@ -69,4 +69,4 @@ Last life loss implemented, back to main menu. |
 | 2026-10-05 | *gcerrete* | Ghost fluid movement function correctly. Debugging. Minor bugs fixed.
 | 2026-10-06 | *gcerrete* | Next level bug on varied maze dimension: solved. Flake8 mypy. ok.
 | 2026-10-10 | *gcerrete* | Refactor pacman findspawn and life loss.
-| 2026-10-12 | *gcerrete* | Risolto bug indice livelli, adesso 10 livelli effettivi anziche 9. Passaggio highscore da dict a lista di tuple. Ordine per punteggio e savefile mantenuto. Gestione errore score negativi aggiunta.
+| 2026-10-12 | *gcerrete* | Risolto bug indice livelli, adesso 10 livelli effettivi anziche 9. Passaggio highscore da dict a lista di tuple. Ordine per punteggio e savefile mantenuto. Gestione errore score negativi aggiunta. Row col in pacgums sincronizzate.

@@ -105,7 +105,7 @@ class PacgumsManagement:
             return 0
 
         # Check if the cell is already eaten ----------------------------
-        if (col, row) in self.eaten:
+        if (row, col) in self.eaten:
             logger.debug(
                 "Attempted to eat already eaten pacgum at (%d, %d)",
                 row,
@@ -128,7 +128,7 @@ class PacgumsManagement:
                     return 0
 
         # If all checks passed, mark the pacgum as eaten ------------------
-        self.eaten.add((col, row))
+        self.eaten.add((row, col))
         if (row, col) in self.corners:
             GhostBase.frighten_ghosts(ghosts)
             turn_score = self.dict_point["super_pacgum"]
