@@ -387,7 +387,7 @@ class GhostBase:
             maze: list[list[int]],
             maze_dim: tuple[int, int]
             ) -> tuple[int, int]:
-        """This method randomly determine a valid one step move."""
+        """This method randomly determine a valid single step move."""
         directions = [
             Direction.NORD,
             Direction.SUD,

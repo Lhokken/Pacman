@@ -46,7 +46,6 @@ class PacgumsManagement:
             maze_height: Height of the maze.
             walkable_fn: Callable to check walkability.
         """
-        # Set of coordinates (x, y) of eaten pacgums
         self.eaten: set[tuple[int, int]] = set()
         self.maze_width = maze_dim[1]
         self.maze_height = maze_dim[0]
@@ -64,7 +63,6 @@ class PacgumsManagement:
         ghosts: list[GhostBase],
         row: int,
         col: int,
-        # ghost_positions: list[tuple[int, int]],
     ) -> int:
         """Try to eat a pacgum in the indicated cell.
 
