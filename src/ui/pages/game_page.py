@@ -287,13 +287,13 @@ class GamePage(Scene):
         remain unchanged
         """
         self.current_level += 1
-        if self.current_level >= len(self.config.levels) - 1:
+        if self.current_level >= len(self.config.levels):
             self.app.switch_scene(VictoryPage(self.app, self.score))
-        self.player.level = self.current_level
+        self.player.level = self.current_level - 1
         self.player.maze_height = self.maze_height = \
-            self.config.levels[self.current_level].height
+            self.config.levels[self.current_level - 1].height
         self.player.maze_width = self.maze_width = \
-            self.config.levels[self.current_level].width
+            self.config.levels[self.current_level - 1].width
         self.player.maze_dim = self.maze_dim = \
             (self.maze_height, self.maze_width)
         self.maze_corners = [
