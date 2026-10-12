@@ -344,17 +344,13 @@ class EndScreenPage(Scene, ABC):
             # if save:
             #     save(name, self.score)
             #     print("-----", save)
-            self.app.HIGHSCORE[name] = self.score
+            self.app.HIGHSCORE.append((name, self.score))
+            self.app.HIGHSCORE = sorted(
+                self.app.HIGHSCORE, key=lambda item: item[1], reverse=True)
+            print(self.app.HIGHSCORE)
 
-            temp_score: list[tuple[int, str]] = []
-            for key, value in self.app.HIGHSCORE.items():
-                temp_score.append((value, key))
-            temp_score = sorted(temp_score)
-            self.app.HIGHSCORE = {}
-            for value, key in temp_score[::-1]:
-                self.app.HIGHSCORE[key] = value
             if len(self.app.HIGHSCORE) > 10:
-                self.app.HIGHSCORE.popitem()
+                self.app.HIGHSCORE.pop()
         else:
             logger.info(
                 "Name entry: name=%s score=%d "

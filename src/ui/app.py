@@ -40,7 +40,7 @@ class GameApp:
         font_manager  : Fonts shared across all scenes.
         current_scene : Currently active scene.
     """
-    HIGHSCORE: dict[str, int] = {}
+    HIGHSCORE: list[tuple[str, int]] = []
     ASSETS_TILE_SIZE = 40
     ASSETS_SUBDIR = ("assets", "img")
     SWITCH_INPUT_COOLDOWN_FRAMES = 15

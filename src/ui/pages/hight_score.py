@@ -272,7 +272,7 @@ class HighScorePage(Scene):
         rows: list[tuple[str, str, str]] = []
         for i, key in enumerate(self.app.HIGHSCORE):
             rank = str(i + 1)
-            rows.append((rank, key, str(self.app.HIGHSCORE[key])))
+            rows.append((rank, key[0], str(key[1])))
         while len(rows) < 10:
             rows.append((
                 str(len(rows) + 1),
