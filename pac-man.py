@@ -70,6 +70,12 @@ class GameEntry:
             with open("highscore.txt", mode="r", encoding="utf-8") as savefile:
                 temp = json.load(savefile)
                 for key, value in temp:
+                    try:
+                        if value < 0:
+                            raise ValueError("Negative score error")
+                    except (ValueError, Exception) as e:
+                        print(f"Invalid score: {e}")
+                        exit()
                     game.HIGHSCORE.append((key, value))
         except Exception as e:
             print(f"highscore.txt loading error: {e}")
