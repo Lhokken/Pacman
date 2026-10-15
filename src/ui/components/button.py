@@ -40,11 +40,11 @@ class Button:
         """Initialize the button.
 
         Args:
-            rect: Area of the button (used for centering text and hit tests).
-            text: Label text.
-            font_normal: Font for unselected state.
-            font_selected: Font for selected state.
-            on_select: Callback called when button is activated.
+            rect          : Area of the button (used for centering text and hit tests).
+            text          : Label text.
+            font_normal   : Font for unselected state.
+            font_selected : Font for selected state.
+            on_select     : Callback called when button is activated.
         """
         self.rect = rect
         self.text = text
@@ -89,7 +89,7 @@ class Button:
         """Draw the button text centered in its rectangle.
 
         Args:
-            surface: The target pygame surface.
+            surface : The target pygame surface.
         """
         font = self.font_selected if self.selected else self.font_normal
         text_surface = font.render(self.text)

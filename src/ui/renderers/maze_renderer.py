@@ -46,16 +46,20 @@ class MazeRenderer:
     ) -> None:
         """Draw the complete maze (walls, intersections, border).
 
-        Richiede che `assets.wall_tiles` e `assets.intersection_tiles`
-        siano già validati: `AssetManager` solleva
-        `MissingRequiredAssetsError` in `_ensure_assets_available()` se
-        mancano. La cornice è opzionale (fallback all-or-nothing gestito
-        dall'AssetManager).
+        Required wall and intersection tiles are validated by ``AssetManager``
+        during loading. Border tiles are optional and use the manager's
+        all-or-nothing fallback policy.
         """
         wall_masks = self._get_wall_render_masks()
-        self._draw_walls(screen, origin_x, origin_y, tile_size, wall_masks)
-        self._draw_intersections(screen, origin_x, origin_y, tile_size)
-        self._draw_border(screen, origin_x, origin_y, tile_size)
+        self._draw_walls(
+            screen, origin_x, origin_y, tile_size, wall_masks
+        )
+        self._draw_intersections(
+            screen, origin_x, origin_y, tile_size
+        )
+        self._draw_border(
+            screen, origin_x, origin_y, tile_size
+        )
 
     # ------------------------------------------------------------------
     def _draw_walls(
@@ -66,7 +70,7 @@ class MazeRenderer:
         tile_size: int,
         wall_masks: list[list[int]],
     ) -> None:
-        """Disegna i segmenti interni non sostituiti da un'intersezione."""
+        """Draw internal wall segments not replaced by intersections."""
         connectors = self.assets.border_wall_tiles
         for y, row in enumerate(wall_masks):
             for x, cell in enumerate(row):
@@ -96,9 +100,20 @@ class MazeRenderer:
                 tile = self.assets.wall_tiles.get(cell)
                 if tile is None:
                     continue
+                # Allinea il centro della linea, non il bordo trasparente.
+                alignment_offset = round(tile_size * 1.9 / 36)
+                offset_x = (
+                    -alignment_offset if cell & self.WALL_LEFT else 0
+                )
+                offset_y = (
+                    -alignment_offset if cell & self.WALL_TOP else 0
+                )
                 screen.blit(
                     tile,
-                    (zero_x + x * tile_size, zero_y + y * tile_size),
+                    (
+                        zero_x + x * tile_size + offset_x,
+                        zero_y + y * tile_size + offset_y,
+                    ),
                 )
 
     def _get_border_connector_names(
@@ -126,7 +141,7 @@ class MazeRenderer:
         origin_y: int,
         tile_size: int,
     ) -> None:
-        """Disegna le tile di intersezione ai vertici interni della griglia."""
+        """Draw intersection tiles at internal grid vertices."""
         for y_vert in range(1, self.height):
             for x_vert in range(1, self.width):
                 mask = self._get_intersection_mask(x_vert, y_vert)
@@ -153,7 +168,7 @@ class MazeRenderer:
         origin_y: int,
         tile_size: int,
     ) -> None:
-        """Disegna il bordo esterno (doppia linea): angoli + 4 lati."""
+        """Draw the double-line outer border, including corners and sides."""
         border = self.assets.border_tiles
         last_col_x = origin_x + (self.width - 1) * tile_size
         last_row_y = origin_y + (self.height - 1) * tile_size
@@ -177,7 +192,15 @@ class MazeRenderer:
     #   INTERSECTION MASK
     # =========================================================================
     def _get_intersection_mask(self, x_vert: int, y_vert: int) -> int:
-        """Calcola la maschera di intersezione a un vertice interno."""
+        """Calculate the wall mask for an internal grid vertex.
+
+        Args:
+            x_vert : Column index of the grid vertex.
+            y_vert : Row index of the grid vertex.
+
+        Returns:
+            Four-bit mask identifying wall arms around the vertex.
+        """
         nw = self._wall_grid[y_vert - 1][x_vert - 1]
         sw = self._wall_grid[y_vert][x_vert - 1]
         ne = self._wall_grid[y_vert - 1][x_vert]

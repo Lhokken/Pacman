@@ -42,7 +42,14 @@ class PanelManager:
         assets_base: Path,
         tile_size: int,
     ) -> None:
-        """Mette TODO: Docstring."""
+        """Create and arrange the gameplay side panels.
+
+        Args:
+            layout      : Current game layout containing panel rectangles.
+            fonts       : Shared bitmap font manager.
+            assets_base : Root directory for UI images.
+            tile_size   : Current maze tile size in pixels.
+        """
         self.layout = layout
         self.fonts = fonts
         self.assets_base = assets_base
@@ -53,26 +60,25 @@ class PanelManager:
     #   UPDATE STATUS
     # ==================================================================
     def update_score(self, score: int) -> None:
-        """Update score in pannel."""
+        """Update the score shown in the side panel."""
         self.score_panel.update_value(score)
 
     def update_lives(self, lives: int) -> None:
-        """Update lives in pannel."""
+        """Update the remaining lives shown in the side panel."""
         self.lives_panel.update_count(lives)
 
     def update_highscore(self, highscore: int) -> None:
-        """Update highscore in pannel."""
+        """Update the high score shown in the side panel."""
         self.highscore_panel.update_value(highscore)
 
     # ==================================================================
     #   DAW PANNELS
     # ==================================================================
     def draw(self, screen: Surface) -> None:
-        """Disegna i pannelli.
+        """Draw the score, lives, high-score, and logo panels.
 
-        Score/Highscore occupano la fascia superiore del pannello laterale
-        (1 - ratio). Lives/Logo occupano la fascia inferiore (ratio),
-        ancorata al fondo del labirinto.
+        Args:
+            screen: Surface that receives the panel artwork and text.
         """
         # Panel layout --------------------------------------------------
         self.score_panel.draw(screen)      # LEFT  TOP    : ScorePanel
@@ -94,8 +100,8 @@ class PanelManager:
         recreating them would reset the current score/lives/highscore.
 
         Args:
-            layout: new GameLayout calculated upon resize.
-            tile_size: new tile size in pixels.
+            layout    : new GameLayout calculated upon resize.
+            tile_size : new tile size in pixels.
         """
         self.layout = layout
         self.tile_size = tile_size

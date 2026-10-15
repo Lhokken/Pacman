@@ -87,15 +87,16 @@ class ArgumentParser:
 
         Args:
             args: Optional list of command-line arguments. If ``None``,
-                ``sys.argv[1:]`` is used.
+                  ``sys.argv[1:]`` is used.
 
         Returns:
-            A :class:`CliArgs` instance containing the configuration file
+            A class `CliArgs` instance containing the configuration file
             path.
 
         Raises:
             CliParsingError: If no arguments are provided, if too many
-                arguments are provided, or if argparse fails to parse them.
+                             arguments are provided, or if argparse fails
+                             to parse them.
         """
         # ----------------------------------------------------------------
         # 1. Parse arguments from sys.argv[1:].
@@ -142,4 +143,6 @@ class ArgumentParser:
                 "Configuration file path is required"
             )
 
-        return CliArgs(config_path=namespace.config_file)
+        return CliArgs(
+            config_path=namespace.config_file
+        )

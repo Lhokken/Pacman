@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 
-from pygame import transform
 from pygame.surface import Surface
 from ..managers.asset_manager import AssetManager
 
@@ -20,6 +19,8 @@ class EntityRenderer:
     #   Both are entities of the same fluidity.
     # ---------------------------------------------------------------
     GHOST_FRAME_MOVE = 2
+    PLAYER_FRAME_DURATION_MS = 80
+    PLAYER_DEATH_FRAME_DURATION_MS = 90
 
     def __init__(self, assets: AssetManager) -> None:
         """Initialize with asset manager.
@@ -40,32 +41,32 @@ class EntityRenderer:
         origin_y: int,
         tile_size: int,
         player_pixel_center: tuple[float, float],
-        ghost_positions: list[tuple[int, int]],
         maze: list[list[int]],
         eaten_pacgums: set[tuple[int, int]] | None = None,
         player_moving: bool = False,
-        player_move_progress: float = 0.0,
-        direction: str | None = ""
+        direction: str | None = "",
+        pacgum_cells: set[tuple[int, int]] | None = None,
+        player_dying: bool = False,
+        death_elapsed_ms: int = 0,
     ) -> None:
         """Draw player, pacgums, and super-pacgums.
 
-        Drawing ghosts delegated to `draw_ghosts()`.
+        Ghost rendering is delegated to `draw_ghosts()`.
 
         Args:
-            screen               : Target surface.
-            origin_x, origin_y   : Pixel coordinates of maze top-left.
-                                   tile_size: Size of each cell.
-            player_pixel_center  : (x, y) pixel coordinates of player center.
-            ghost_positions      : List of (x, y) for each ghost.
-                                   Used ONLY to exclude pacgums under ghosts.
-            maze                 : Maze matrix (to detect walkable cells).
-            eaten_pacgums        : Set of cells whose pacgum has been eaten.
-                                   If None, all pacgums are drawn.
-            player_moving        : Whether the player is currently moving
-                                   (controls animation). If False, an idle
-                                   frame is shown.
-            player_move_progress : Progress of current movement (0.0 to 1.0),
-                                   used to select animation frame.
+            screen: Destination surface.
+            origin_x: Maze origin x-coordinate in pixels.
+            origin_y: Maze origin y-coordinate in pixels.
+            tile_size: Side length of a maze cell in pixels.
+            player_pixel_center: Player center as an ``(x, y)`` pixel pair.
+            maze: Wall-bitmask grid used to identify walkable cells.
+            eaten_pacgums: Cells whose pacgums have already been eaten.
+            player_moving: Whether to animate the player's normal movement.
+            direction: Current player facing direction.
+            pacgum_cells: Cells containing pacgums; defaults to every
+                walkable cell when omitted.
+            player_dying: Whether the one-shot death animation is active.
+            death_elapsed_ms: Time elapsed since the death animation began.
         """
         if eaten_pacgums is None:
             eaten_pacgums = set()
@@ -76,11 +77,11 @@ class EntityRenderer:
         # ------------------------------------------------
         self._draw_pacgums(
             screen, origin_x, origin_y, tile_size, maze,
-            ghost_positions, eaten_pacgums,
+            eaten_pacgums, pacgum_cells,
         )
         self._draw_player(
             screen, player_pixel_center,
-            player_moving, player_move_progress, direction
+            player_moving, direction, player_dying, death_elapsed_ms,
         )
 
     # -------------------------------------------------------------------------
@@ -93,67 +94,82 @@ class EntityRenderer:
         origin_y: int,
         tile_size: int,
         maze: list[list[int]],
-        ghost_positions: list[tuple[int, int]],
         eaten_pacgums: set[tuple[int, int]],
+        pacgum_cells: set[tuple[int, int]] | None,
     ) -> None:
         """Draw the Pac-Dots in the walkable cells."""
-        img = self.assets.pacgum_img
-        if img is None:
+        pacgum_img = self.assets.pacgum_img
+        super_pacgum_img = self.assets.super_pacgum_img
+        if pacgum_img is None and super_pacgum_img is None:
             return
 
-        occupied = set(ghost_positions)
         half = tile_size // 2
+        super_cells = {
+            (0, 0),
+            (len(maze[0]) - 1, 0),
+            (0, len(maze) - 1),
+            (len(maze[0]) - 1, len(maze) - 1),
+        }
 
         for y, row in enumerate(maze):
             for x, _cell in enumerate(row):
-                if (x, y) in occupied or (y, x) in eaten_pacgums:
+                if (y, x) in eaten_pacgums:
+                    continue
+                if pacgum_cells is not None and (y, x) not in pacgum_cells:
                     continue
                 if not self._is_walkable(x, y, maze):
                     continue
-                # -----------------------------------------------
-                # superpacgum drawing
-                # -----------------------------------------------
-                if (x, y) in [
-                        (0, 0),
-                        (len(maze[0]) - 1, 0),
-                        (0, len(maze) - 1),
-                        (len(maze[0]) - 1, len(maze) - 1)
-                        ]:
-                    xl_img = transform.smoothscale(img, (13, 13))
-                    self._draw_centered(
-                        screen, xl_img,
-                        origin_x + x * tile_size + half,
-                        origin_y + y * tile_size + half,
-                    )
-                # -----------------------------------------------
-                # normal pacgum drawing
-                # -----------------------------------------------
-                else:
-                    self._draw_centered(
-                        screen, img,
-                        origin_x + x * tile_size + half,
-                        origin_y + y * tile_size + half,
-                    )
+                image = (
+                    super_pacgum_img
+                    if (x, y) in super_cells and super_pacgum_img is not None
+                    else pacgum_img
+                )
+                if image is None:
+                    continue
+                self._draw_centered(
+                    screen,
+                    image,
+                    origin_x + x * tile_size + half,
+                    origin_y + y * tile_size + half,
+                )
 
     def _draw_player(
         self,
         screen: Surface,
         player_pixel_center: tuple[float, float],
         player_moving: bool,
-        player_move_progress: float,
-        direction: str | None
+        direction: str | None,
+        player_dying: bool,
+        death_elapsed_ms: int,
     ) -> None:
-        """Disegna il player scegliendo il frame in base allo stato."""
-        frames = self.assets.player_frames
+        """Draw the player frame matching its current animation state."""
+        if player_dying and self.assets.player_death_frames:
+            death_frames = self.assets.player_death_frames
+            index = min(
+                death_elapsed_ms // self.PLAYER_DEATH_FRAME_DURATION_MS,
+                len(death_frames) - 1,
+            )
+            self._draw_centered(
+                screen,
+                death_frames[index],
+                int(round(player_pixel_center[0])),
+                int(round(player_pixel_center[1])),
+            )
+            return
+
+        frames = self.assets.player_frames.get(direction or "right", [])
+        if not frames:
+            frames = self.assets.player_frames.get("right", [])
         player_img: Surface | None
         # -----------------------------------------------------------------
         #   GESTIONE PLAYER FLUIDO
         # -----------------------------------------------------------------
-        if player_moving and frames:
-            # -------------------------------------------------------------
-            #   The 0..1 progress cycles through the frames twice as fast.
-            # -------------------------------------------------------------
-            idx = int(player_move_progress * len(frames) * 2) % len(frames)
+        if player_moving and len(frames) > 1:
+            cycle_steps = (len(frames) - 1) * 2
+            phase = int(
+                time.monotonic() * 1000 / self.PLAYER_FRAME_DURATION_MS
+            ) % cycle_steps
+            idx = phase if phase < len(frames) else cycle_steps - phase
             player_img = frames[idx]
         elif frames:
             player_img = frames[1] if len(frames) > 1 else frames[0]
@@ -161,14 +177,6 @@ class EntityRenderer:
             player_img = self.assets.player_img
         if player_img is None:
             return
-        if direction == "up":
-            player_img = transform.rotate(player_img, 90)
-        if direction == "down":
-            player_img = transform.rotate(player_img, -90)
-        if direction == "left":
-            player_img = transform.rotate(player_img, 180)
-        if direction == "right":
-            pass
         self._draw_centered(
             screen, player_img,
             int(round(player_pixel_center[0])),
@@ -211,13 +219,13 @@ class EntityRenderer:
         info: dict,
         frightened_flash: bool,
     ) -> Surface | None:
-        """Sceglie il frame corretto in base allo stato del ghost.
+        """Select the ghost frame matching its state and direction.
 
-        Ordine di priorita:
-            1. state == "eaten"          : sprite "dead"
-            2. state == "frightened"     : fear / fear_flash
-            3. state == frightened_flash : sprite chiaro
-            4. altrimenti                : frames per direzione
+        Priority order:
+            1. ``eaten`` state: dead sprite.
+            2. ``frightened`` state: fear or fear-flash frame.
+            3. Active fear flash: flashing frame.
+            4. Otherwise: frame matching the movement direction.
         """
         name = info.get("name", "")
         sprites = self.assets.ghosts.get(name)

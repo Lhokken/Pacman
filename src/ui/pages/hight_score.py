@@ -117,6 +117,8 @@ class HighScorePage(Scene):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.app.running = False
+            elif event.type == pygame.VIDEORESIZE:
+                self.app.handle_window_resize(event.w, event.h)
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self._go_back()
@@ -214,7 +216,7 @@ class HighScorePage(Scene):
     #   NAVIGATION
     # ==================================================================
     def _go_back(self) -> None:
-        """Torna al menu principale."""
+        """Return to the main menu."""
         from .main_menu import MainMenu
         self.app.switch_scene(MainMenu(self.app))
 
@@ -235,40 +237,13 @@ class HighScorePage(Scene):
         self._rows = self._build_rows()
 
     def _build_rows(self) -> list[tuple[str, str, str]]:
-        """Construct at least `MIN_ROWS` leaderboard rows.
+        """Build leaderboard rows from the application's high-score list.
 
-        The initial rows come from the actual store (if available);
-        missing positions are filled with placeholders.
-
-        TODO: HOOK UP TO CORE
+        Missing positions are filled with placeholder values.
 
         Returns:
-            A list of `(rank, name, score)` tuples of length `MIN_ROWS`.
+            Ranked ``(rank, name, score)`` rows for the high-score table.
         """
-        # store = (
-        #     getattr(self.app, "highscore_store", None)
-        # )
-        # entries = (
-        #     store.top(self.MIN_ROWS) if store is not None else []
-        # )
-        # # -------------------------------------------------------------
-        # # Lista dei Nomi delle persone.
-        # # -------------------------------------------------------------
-        # rows: list[tuple[str, str, str]] = []
-        # for i in range(self.MIN_ROWS):
-        #     rank = str(i + 1)
-        #     if i < len(entries):
-        #         e = entries[i]
-        #         rows.append((rank, e.name, str(e.score)))
-        #     else:
-        #         rows.append((
-        #             rank,
-        #             self.PLACEHOLDER_NAME,
-        #             self.PLACEHOLDER_SCORE,
-        #         ))
-        # ---------------------------------------------
-        # Lista dei Nomi delle persone.
-        # -------------------------------------------------------------
         rows: list[tuple[str, str, str]] = []
         for i, key in enumerate(self.app.HIGHSCORE):
             rank = str(i + 1)

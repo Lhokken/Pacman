@@ -5,7 +5,6 @@ and name entry logic; this file centralizes all of that.
 
 Static version
     - No timer, no blinking: the cursor is always visible.
-    - The cursor is an arrow (asset `char/giallo/segni/freccia.png`).
     - Metrics are calculated in `__init__` and recalculated only upon
       resizing (in `update`), not during every `draw` call.
 
@@ -33,6 +32,7 @@ from pygame.surface import Surface
 from ..components.button import Button
 from ..configUI.ui_config import FontRole
 from ..layout.end_screen_layout import EndScreenLayout, EndScreenMetrics
+from ..managers.asset_exceptions import UnsupportedGlyphError
 from ..scene import Scene
 
 if TYPE_CHECKING:
@@ -51,14 +51,11 @@ class EndScreenPage(Scene, ABC):
     TITLE_TEXT: str = ""
     MESSAGE_TEXT: str = ""
 
-    NAME_MAX_LEN: int = 5
+    NAME_MAX_LEN: int = 10
     NAME_LABEL_TEXT: str = "ENTER YOUR NAME"
     NAME_PLACEHOLDER: str = "-"
 
     BUTTON_TEXT: str = "SAVE AND BACK TO MENU"
-
-    CURSOR_GAP: int = 6
-    CURSOR_ROTATE: int = -90
 
     SHOW_CREDITS: bool = False
     CREDIT_TEXT: str = "for 42 school project"
@@ -67,9 +64,9 @@ class EndScreenPage(Scene, ABC):
         """Initialize the end screen and its fixed-size layout elements.
 
         Args:
-            app: Application instance used for rendering, assets, and scene
-                switching.
-            score: Final score to display and optionally save.
+            app   : Application instance used for rendering, assets, and scene
+                    switching.
+            score : Final score to display and optionally save.
         """
         super().__init__(app)
         self.score = score
@@ -128,9 +125,6 @@ class EndScreenPage(Scene, ABC):
         self._name: str = ""
         self._submitted: bool = False
 
-        self._raw_cursor = self._load_cursor_img()
-        self._cursor_img: Surface | None = None
-
         self._button = Button(
             pygame.Rect(0, 0, 10, 10),
             self.BUTTON_TEXT,
@@ -152,6 +146,10 @@ class EndScreenPage(Scene, ABC):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.app.running = False
+            elif event.type == pygame.VIDEORESIZE:
+                self.app.handle_window_resize(
+                    event.w, event.h
+                )
             elif event.type == pygame.KEYDOWN:
                 self._handle_key(event)
 
@@ -159,7 +157,8 @@ class EndScreenPage(Scene, ABC):
         """Update the entered name or trigger a navigation action.
 
         Args:
-            event: Keyboard event containing the pressed key and character.
+            event : Keyboard event containing the pressed key and
+                    character.
         """
         if event.key == pygame.K_ESCAPE:
             self._go_back()
@@ -170,9 +169,13 @@ class EndScreenPage(Scene, ABC):
         if event.key == pygame.K_BACKSPACE:
             self._name = self._name[:-1]
             return
+        # Controllo del supported gliph in endscreen -------------
         ch = event.unicode
-        if ch and ch.isalnum() and len(self._name) < self.NAME_MAX_LEN:
-            self._name += ch.upper()
+        if (
+            len(self._name) < self.NAME_MAX_LEN
+            and self._is_supported_name_character(ch)
+        ):
+            self._name += ch if ch == " " else ch.upper()
 
     def update(self) -> None:
         """Recalculate layout-dependent metrics after a resize."""
@@ -180,7 +183,10 @@ class EndScreenPage(Scene, ABC):
             self._rebuild_metrics()
 
     def draw(self, screen: Surface) -> None:
-        """Render the title, score, name entry, button, and optional credits.
+        """Render the end screen element.
+
+        element supported:
+            title, score, name entry, button, and optional credits.
 
         Args:
             screen: Surface on which the end screen is rendered.
@@ -233,11 +239,12 @@ class EndScreenPage(Scene, ABC):
                 footer_y
             )
 
+    # Private methods --------------------------------------------------
     # ==================================================================
     #   Metriche
     # ==================================================================
     def _rebuild_metrics(self) -> None:
-        """Recalculate screen metrics and resize the name-entry cursor."""
+        """Recalculate the end-screen metrics."""
         w, h = self.app.screen.get_size()
         self._metrics_size = (w, h)
         self._metrics = self._layout.compute(
@@ -247,31 +254,19 @@ class EndScreenPage(Scene, ABC):
         )
         self._button.rect = self._metrics.button_rect
 
-        if self._raw_cursor is not None:
-            char_h = self.font_name.char_height
-            self._cursor_img = self.render.scale_to_height(
-                self._raw_cursor, char_h,
-            )
-            if self.CURSOR_ROTATE:
-                self._cursor_img = pygame.transform.rotate(
-                    self._cursor_img, self.CURSOR_ROTATE,
-                )
-        else:
-            self._cursor_img = None
-
     # ==================================================================
     #   Name entry (statico, slot-per-slot)
     # ==================================================================
     def _draw_name_entry(
         self, screen: Surface, cx: int, label_y: int, value_y: int,
     ) -> None:
-        """Render fixed-width name slots and the current cursor position.
+        """Render the fixed-width name-entry slots.
 
         Args:
-            screen: Surface on which the name entry is rendered.
-            cx: Horizontal center of the name-entry block.
-            label_y: Vertical center of the name label.
-            value_y: Vertical center of the name slots.
+            screen   : Surface on which the name entry is rendered.
+            cx       : Horizontal center of the name-entry block.
+            label_y  : Vertical center of the name label.
+            value_y  : Vertical center of the name slots.
         """
         self.render.blit_center(
             screen,
@@ -287,81 +282,78 @@ class EndScreenPage(Scene, ABC):
         start_x = cx - total_w // 2
         top_y = value_y - char_h // 2
 
+        # CONTROLLO GLIFI NON AMMESSI  -----------------------------------
         for i in range(self.NAME_MAX_LEN):
             ch = (
                 self._name[i]
                 if i < len(self._name)
                 else self.NAME_PLACEHOLDER
             )
-            glyph = self.font_name.render(ch)
+            try:
+                glyph = self.font_name.render(ch)
+            except UnsupportedGlyphError as error:
+                logger.warning(
+                    "Could not render player-name glyph %r: %s",
+                    ch,
+                    error,
+                )
+                glyph = sample
             screen.blit(glyph, (start_x + i * char_w, top_y))
 
-        current = len(self._name)
-        if current < self.NAME_MAX_LEN and self._cursor_img is not None:
-            slot_cx = start_x + current * char_w + char_w // 2
-            arrow_y = top_y + char_h + self.CURSOR_GAP
-            self.render.blit_midtop(
-                screen, self._cursor_img, slot_cx, arrow_y,
-            )
+    # ==================================================================
+    #   Actions
+    # ==================================================================
+    def _is_supported_name_character(self, character: str) -> bool:
+        """Check the name rules against the glyphs available in its font."""
+        if character == " ":
+            return True
+        if not character.isascii() or not character.isalnum():
+            return False
+        return self.font_name.supports_character(character.upper())
 
-    # ==================================================================
-    #   Caricamento asset cursore
-    # ==================================================================
-    def _load_cursor_img(self) -> Surface | None:
-        """Load the arrow cursor asset used below the active name slot.
-
-        Returns:
-            The loaded cursor surface, or ``None`` when the asset is missing
-            or cannot be decoded by Pygame.
-        """
-        path = (
-            self.app.assets_base
-            / "char" / "giallo" / "segni" / "freccia.png"
-        )
-        if not path.exists():
-            logger.warning(
-                "EndScreenPage: cursore freccia mancante %s", path
-            )
-            return None
-        try:
-            return pygame.image.load(path).convert_alpha()
-        except pygame.error as e:
-            logger.error(
-                "EndScreenPage: errore caricando %s: %s", path, e
-            )
-            return None
-
-    # ==================================================================
-    #   Azioni
-    # ==================================================================
     def _submit(self) -> None:
         """Save the entered name when supported and return to the menu."""
         if self._submitted:
             return
-        name = self._name.strip().upper()
+        name = "".join(
+            character if character == " " else character.upper()
+            for character in self._name[:self.NAME_MAX_LEN]
+            if self._is_supported_name_character(character)
+        ).strip()
         if name:
-            # save = getattr(self.app, "save_highscore", None)
-            # if save:
-            #     save(name, self.score)
-            #     print("-----", save)
             self.app.HIGHSCORE.append((name, self.score))
             self.app.HIGHSCORE = sorted(
-                self.app.HIGHSCORE, key=lambda item: item[1], reverse=True)
-            print(self.app.HIGHSCORE)
-
+                self.app.HIGHSCORE,
+                key=lambda item: item[1],
+                reverse=True
+            )
+            # DEBUG MESSAGE ---------------------------------------------
+            logger.debug(
+                "Updated highscore list: %s", self.app.HIGHSCORE
+            )
+            # POP per liste piu grandi di 10 ----------------------------
             if len(self.app.HIGHSCORE) > 10:
                 self.app.HIGHSCORE.pop()
         else:
+            # DEBUG MESSAGE ---------------------------------------------
             logger.info(
                 "Name entry: name=%s score=%d "
                 "(no save_highscore on app)",
-                name, self.score,
+                name,
+                self.score,
             )
+        # OPEN AND SAVE FILE --------------------------------------------
         try:
-            with open("highscore.txt", mode="w", encoding="utf-8") as savefile:
+            highscore_path = self.app.config.highscore_filename
+            with open(highscore_path, mode="w", encoding="utf-8") as savefile:
                 json.dump(self.app.HIGHSCORE, savefile)
-        except Exception as e:
-            print(e)
+
+        except (OSError, TypeError, ValueError) as error:
+            logger.error(
+                "Could not save highscore file %s: %s",
+                self.app.config.highscore_filename,
+                error,
+            )
         self._submitted = True
         self._go_back()
 
@@ -373,6 +365,7 @@ class EndScreenPage(Scene, ABC):
 
 class GameOverPage(EndScreenPage):
     """Scene shown when the game is over."""
+
     TITLE_TEXT = "Game Over"
     MESSAGE_TEXT = ""
     SHOW_CREDITS = True
@@ -380,6 +373,7 @@ class GameOverPage(EndScreenPage):
 
 class VictoryPage(EndScreenPage):
     """Scene shown when the player wins."""
+
     TITLE_TEXT = "Victory!"
     MESSAGE_TEXT = "You have cleared all the levels!"
     SHOW_CREDITS = True

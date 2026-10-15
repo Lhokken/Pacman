@@ -12,14 +12,6 @@ import pygame
 
 from dataclasses import dataclass
 
-# Unlike `GameLayout`, which receives all inputs via its constructor,
-# `MenuLayout` is a pure calculator: the menu changes throughout its lifecycle:
-# (attract → ready → menu)
-# and dynamic values: ​
-# ​(title height, brand Y-position, number of buttons)
-# are not known in advance. Therefore, `compute()` accepts these values ​​on
-# each call and returns a `MenuBlock`.
-
 
 @dataclass(frozen=True)
 class BlockMenu:
@@ -76,9 +68,6 @@ class MenuLayout:
     def __init__(self, **overrides: float) -> None:
         """Create the layout, possibly overwriting some ratios.
 
-        Args:
-            **overrides: e.g. CENTER_Y_RATIO=0.65, BUTTON_HEIGHT_RATIO=0.08.
-
         Raises:
             AttributeError: if a key is not a known ratio.
         """
@@ -106,11 +95,11 @@ class MenuLayout:
         """Calculate block positions.
 
         Args:
-            screen_w: screen size in pixels.
-            screen_h: screen size in pixels.
-            title_h: title height (0 if absent).
-            brand_y: Y of the top brand (0 if absent). Lower floor.
-            nbr_btn: number of buttons.
+            screen_w : screen size in pixels.
+            screen_h : screen size in pixels.
+            title_h  : title height (0 if absent).
+            brand_y  : Y of the top brand (0 if absent). Lower floor.
+            nbr_btn  : number of buttons.
 
         Returns:
             MenuBlock with the Y of the title and the rects of the buttons.
@@ -120,19 +109,19 @@ class MenuLayout:
         btn_s = int(screen_h * self.BTN_SPACE_RATIO)             # spacing
         btn_g = int(screen_h * self.TITLE_TO_BTN_GAP_RATIO)      # gap
 
-        # Altezza totale del contenitore -----------------------------------
+        # Total height of the container ------------------------------------
         buttons_h = nbr_btn * btn_h + max(0, nbr_btn - 1) * btn_s
         container_h = title_h + btn_g + buttons_h
 
-        # Centro Target -> TOP container -----------------------------------
+        # Target Center -> TOP container -----------------------------------
         target_center = int(screen_h * self.CENTER_Y_RATIO)
         container_top = target_center - container_h // 2
 
-        # Floor: evita collisione con il brand, lasciando un margine.
+        # Floor: avoid collision with the brand by leaving a margin.
         min_top = brand_y + int(screen_h * self.BRAND_FLOOR_RATIO)
         container_top = max(container_top, min_top)
 
-        # Posizioni --------------------------------------------------------
+        # Position ---------------------------------------------------------
         title_center_y = container_top + title_h // 2
         first_center_y = container_top + title_h + btn_g + btn_h // 2
 

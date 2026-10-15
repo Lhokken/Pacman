@@ -229,12 +229,12 @@
 **Assegnato:** *gcerrete*
 **Criteri di accettazione:**
 
-- [ ] Persistenza su file JSON
-- [ ] Top 10 con nome + punteggio
-- [ ] Nome: max 10 caratteri, alfanumerico + spazi
+- [x] Persistenza su file JSON
+- [x] Top 10 con nome + punteggio
+- [x] Nome: max 10 caratteri, alfanumerico + spazi
 - [X] Score: intero non-negativo
-- [ ] Robusto a file mancante/corrotto (no crash)
-- [ ] Load a inizio partita, save a fine partita
+- [x] Robusto a file mancante/corrotto (no crash)
+- [x] Load a inizio partita, save a fine partita
 
 ### #25 — Progressione multi-livello [feature]
 
@@ -245,7 +245,7 @@
 - [V] Almeno 10 livelli
 - [V] Livello 1 con seed fisso (42), successivi random
 - [V] Timer per livello (config `level_max_time`)
-- [ ] Comportamento a timeout definito (es. restart livello)
+- [x] Comportamento a timeout definito (es. restart livello)
 - [V] Score e vite mantenuti tra livelli
 
 ### #26 — Cheat mode [feature]
@@ -270,7 +270,7 @@
 **Assegnato:** *fedegugl* *gcerrete*
 **Criteri di accettazione:**
 
-- [ ] Tutti i punti di I/O (file, config, maze package) in try/except
+- [x] Tutti i punti di I/O (file, config, maze package) in try/except
 - [ ] Nessun crash riproducibile in nessun test manuale
 
 ### #28 — Type hints + mypy pulito [quality]
@@ -285,16 +285,16 @@
 **Assegnato:** *fedegugl* *gcerrete*
 **Criteri di accettazione:**
 
-- [ ] Tutte le funzioni/classi pubbliche documentate
+- [x] Tutte le funzioni/classi pubbliche documentate
 
 ### #30 — Test pytest [quality]
 
 **Assegnato:** *fedegugl* *gcerrete*
 **Criteri di accettazione:**
 
-- [ ] Test su config parser (validi/invalidi)
-- [ ] Test su highscore (edge case nomi/punteggi)
-- [ ] Test su scoring
+- [x] Test su config parser (validi/invalidi)
+- [x] Test su highscore (edge case nomi/punteggi)
+- [x] Test su scoring
 
 ### #31 — README completo [docs]
 
@@ -302,7 +302,7 @@
 **Criteri di accettazione:**
 
 - [X] Prima riga italic con login richiesti
-- [ ] Sezioni: Description, Instructions, Resources+AI, Configuration, Highscore, Maze Generation, Implementation, Architecture, Project Management
+- [x] Sezioni: Description, Instructions, Resources+AI, Configuration, Highscore, Maze Generation, Implementation, Architecture, Project Management
 - [X] Scritto in inglese
 
 ### #32 — Packaging su piattaforma pubblica [deploy]

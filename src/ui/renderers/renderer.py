@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pygame
 from pygame.surface import Surface
+
+from ..managers.image_scaling import ImageScaler
 
 if TYPE_CHECKING:
     from ..components.bitmap_font import BitmapFont
@@ -118,4 +119,4 @@ class Renderer:
         ratio = target_h / img.get_height()
         w = max(1, int(img.get_width() * ratio))
 
-        return pygame.transform.smoothscale(img, (w, target_h))
+        return ImageScaler.nearest_neighbor(img, (w, target_h))

@@ -16,6 +16,7 @@ from ..layout.instructions_layout import (
     InstructionsLayout,
     InstructionsMetrics,
 )
+from ..managers.image_scaling import ImageScaler
 
 if TYPE_CHECKING:
     from ..app import GameApp
@@ -32,7 +33,7 @@ class InstructionPage(Scene):
         """Initialize the instructions page.
 
         Args:
-            app: Instance of `GameApp` from which to take the screen and
+            app : Instance of `GameApp` from which to take the screen and
                  handle scene switching.
         """
         super().__init__(app)
@@ -52,25 +53,53 @@ class InstructionPage(Scene):
         # -----------------------------------------------------------
         self._layout = InstructionsLayout()
         # -----------------------------------------------------------
-        # --- Dati riga 1
+        #   Data ROW 1
         # -----------------------------------------------------------
         self._characters: list[tuple[Path, str, str]] = [
-            (self._ghost_path("blinky"), "SHADOW", "BLINKY"),
-            (self._ghost_path("pinky"), "SPEEDY", "PINKY"),
-            (self._ghost_path("inky"), "BASHFUL", "INKY"),
-            (self._ghost_path("clyde"), "POKEY", "CLYDE"),
+            (
+                self._ghost_path("blinky"),
+                "SHADOW",
+                "BLINKY"
+            ),
+            (
+                self._ghost_path("pinky"),
+                "SPEEDY",
+                "PINKY"
+            ),
+            (
+                self._ghost_path("inky"),
+                "BASHFUL",
+                "INKY"
+            ),
+            (
+                self._ghost_path("clyde"),
+                "POKEY",
+                "CLYDE"
+            ),
         ]
         # -----------------------------------------------------------
-        # --- Dati riga 2
+        #   Data ROW 2
         # -----------------------------------------------------------
         self._scores: list[tuple[Path, str, str]] = [
-            (self._gum_path("pacgum"), "PAC-GUM", "10 PTS"),
-            (self._gum_path("super_pacgum"), "SUPER", "50 PTS"),
-            (self._fear_path(), "FEAR MODE", "EAT THEM"),
+            (
+                self._gum_path("pacgum"),
+                "PAC-GUM",
+                "10 PTS"
+            ),
+            (
+                self._gum_path("super_pacgum"),
+                "SUPER", "50 PTS"
+            ),
+            (
+                self._fear_path(),
+                "FEAR MODE",
+                "EAT THEM"
+            ),
         ]
         # -----------------------------------------------------------
-        # --- Back button
+        #   BACK BUTTONS
         # -----------------------------------------------------------
+        # TODO: Rect e proibita.
         self.back_button = Button(
             pygame.Rect(0, 0, 300, 50),
             "ESC TO RETURN TO MENU",
@@ -80,7 +109,7 @@ class InstructionPage(Scene):
         )
         self.buttons = [self.back_button]
         # -----------------------------------------------------------
-        # --- Asset + cache scalata
+        #   Asset + cache scalata
         # -----------------------------------------------------------
         self._raw_chars = [
             self._load_png(p) for p, _, _ in self._characters
@@ -106,6 +135,10 @@ class InstructionPage(Scene):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.app.running = False
+            elif event.type == pygame.VIDEORESIZE:
+                self.app.handle_window_resize(
+                    event.w, event.h
+                )
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
                     self.back_button.handle_event(event)
@@ -133,7 +166,7 @@ class InstructionPage(Scene):
     #   Navigazione
     # ==================================================================
     def _go_back(self) -> None:
-        """Torna al menu principale."""
+        """Return to the main menu."""
         from .main_menu import MainMenu
         self.app.switch_scene(MainMenu(self.app))
 
@@ -238,14 +271,16 @@ class InstructionPage(Scene):
         if img is None or target_h <= 0:
             return None
         w = max(1, int(img.get_width() * target_h / img.get_height()))
-        return pygame.transform.smoothscale(img, (w, target_h))
+        return (
+            ImageScaler.nearest_neighbor(img, (w, target_h))
+        )
 
     @staticmethod
     def _load_png(path: Path) -> Surface | None:
         """Load a PNG with an alpha channel, returning `None` on error.
 
         Args:
-            path: Path to the image to load.
+            path : Path to the image to load.
 
         Returns:
             The loaded surface with an alpha channel, or `None` if the
@@ -253,14 +288,14 @@ class InstructionPage(Scene):
         """
         if not path.exists():
             logger.warning(
-                "InstructionPage: asset mancante %s", path
+                "InstructionPage: Missing asset %s", path
             )
             return None
         try:
             return pygame.image.load(path).convert_alpha()
         except pygame.error as e:
             logger.error(
-                "InstructionPage: errore caricando %s: %s", path, e,
+                "InstructionPage: error loading %s: %s", path, e,
             )
             return None
 
@@ -268,18 +303,23 @@ class InstructionPage(Scene):
     #   Draw
     # ==================================================================
     def _draw_characters(self, screen: Surface) -> None:
-        """Draws the CHARACTERS section (title, sprites, names).
+        """Draws the CHARACTERS section.
+
+        Elements: title, sprites and names.
 
         Args:
             screen: Target surface.
         """
         assert self._metrics is not None
         m = self._metrics.characters
+        # TODO: FUNZIONE PROIBITA! get_width()
+        #       allineare con src/ui/managers/image_scaling.py
         cx_screen = screen.get_width() // 2
-        # TITOLO FANTASMI -------------------------------------------
+        # GHOST TITLE -------------------------------------------
         title = (
             self._font_section.render("CHARACTERS")
         )
+        # TODO: FUNZIONE PROIBITA! get_rect()
         screen.blit(
             title,
             title.get_rect(center=(cx_screen, m.title_center_y)),
@@ -310,10 +350,12 @@ class InstructionPage(Scene):
             screen.blit(name_surf, name_surf.get_rect(midtop=(cx, y)))
 
     def _draw_scores(self, screen: Surface) -> None:
-        """Disegna la sezione SCORE POINTS (titolo, sprite, etichette).
+        """Draw the score-points section.
+
+        Element: title, sprites, and labels.
 
         Args:
-            screen: Surface di destinazione.
+            screen: Destination surface.
         """
         assert self._metrics is not None
         m = self._metrics.scores
@@ -351,10 +393,10 @@ class InstructionPage(Scene):
         self._draw_fear_caption(screen)
 
     def _draw_fear_caption(self, screen: Surface) -> None:
-        """Disegna la caption esplicativa sotto la riga punteggi.
+        """Draw the explanatory caption below the score row.
 
         Args:
-            screen: Surface di destinazione.
+            screen: Destination surface.
         """
         if self._metrics is None:
             return

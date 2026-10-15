@@ -150,19 +150,19 @@ class GameConfig:
     """Global game configuration with robust defaults.
 
     Attributes:
-        lives: Number of starting lives (>= 1).
-        seed: Random seed for level generation (>= 0).
-        pacgum: Total number of pacgums per level (>= 0).
-        points_per_pacgum: Points awarded for each pacgum (>= 0).
-        points_per_super_pacgum: Points for super pacgums (>= 0).
-        points_per_ghost: Points for edible ghosts (>= 0).
-        level_max_time: Time limit per level in seconds (>= 1).
-        highscore_filename: Name of the highscore file.
-        levels: List of validated LevelConfig objects.
+        lives             : Number of starting lives (>= 1).
+        seed              : Random seed for level generation (>= 0).
+        pacgum_coverage   : Percentage of walkable cells with a pacgum.
+        points_per_pacgum : Points awarded for each pacgum (>= 0).
+        points_per_super_pacgum : Points for super pacgums (>= 0).
+        points_per_ghost        : Points for edible ghosts (>= 0).
+        level_max_time          : Time limit per level in seconds.
+        highscore_filename      : Name of the highscore file.
+        levels                  : List of validated LevelConfig objects.
     """
 
     DEFAULT_LIVES = 3
-    DEFAULT_PACGUM = 42
+    DEFAULT_PACGUM_COVERAGE = 100
     DEFAULT_POINTS_PER_PACGUM = 10
     DEFAULT_POINTS_PER_SUPER_PACGUM = 50
     DEFAULT_POINTS_PER_GHOST = 200
@@ -175,8 +175,8 @@ class GameConfig:
     # -------------------------------------------------------
     MIN_LIVES = 1
     MAX_LIVES = 99
-    MIN_PACGUM = 0
-    MAX_PACGUM = 1000
+    MIN_PACGUM_COVERAGE = 1
+    MAX_PACGUM_COVERAGE = 100
     MIN_POINTS = 0
     MAX_POINTS = 100000
     MIN_SEED = 0
@@ -186,7 +186,7 @@ class GameConfig:
 
     lives: int
     seed: int
-    pacgum: int
+    pacgum_coverage: int
     points_per_pacgum: int
     points_per_super_pacgum: int
     points_per_ghost: int
@@ -202,10 +202,10 @@ class GameConfig:
         entries by falling back to a single default level.
 
         Args:
-            data: The parsed configuration dictionary.
+            data : The parsed configuration dictionary.
 
         Returns:
-            A list of LevelConfig objects (never empty).
+            A list of LevelConfig objects.
         """
         levels_data = data.get("levels")
 
@@ -255,7 +255,7 @@ class GameConfig:
         """Parse and validate the highscore filename.
 
         Args:
-            data: The parsed configuration dictionary.
+            data : The parsed configuration dictionary.
 
         Returns:
             A valid filename string (never empty).
@@ -294,7 +294,7 @@ class GameConfig:
         The resulting GameConfig is always valid.
 
         Args:
-            data: Dictionary with configuration keys.
+            data : Dictionary with configuration keys.
 
         Returns:
             A fully validated GameConfig instance.
@@ -317,12 +317,12 @@ class GameConfig:
                 min_value=cls.MIN_SEED,
                 max_value=cls.MAX_SEED,
             ),
-            pacgum=ConfigHelper.safe_int(
-                data.get("pacgum"),
-                cls.DEFAULT_PACGUM,
-                "pacgum",
-                min_value=cls.MIN_PACGUM,
-                max_value=cls.MAX_PACGUM,
+            pacgum_coverage=ConfigHelper.safe_int(
+                data.get("pacgum_coverage"),
+                cls.DEFAULT_PACGUM_COVERAGE,
+                "pacgum_coverage",
+                min_value=cls.MIN_PACGUM_COVERAGE,
+                max_value=cls.MAX_PACGUM_COVERAGE,
             ),
             points_per_pacgum=ConfigHelper.safe_int(
                 data.get("points_per_pacgum"),
@@ -375,10 +375,10 @@ class ConfigLoader:
         """Initialize with the configuration file path.
 
         Args:
-            filepath: Path to the JSON configuration file.
+            filepath : Path to the JSON configuration file.
 
         Raises:
-            TypeError: If filepath is not a string or Path.
+            TypeError : If filepath is not a string or Path.
         """
         if not isinstance(filepath, (str, Path)):
             raise TypeError(
@@ -391,7 +391,7 @@ class ConfigLoader:
         """Remove comment lines from the text (delegates to ConfigHelper).
 
         Args:
-            text: The raw text content of the file.
+            text : The raw text content of the file.
 
         Returns:
             Text with comment lines removed.
@@ -471,7 +471,7 @@ class ConfigLoader:
         known_keys = {
             "lives",
             "seed",
-            "pacgum",
+            "pacgum_coverage",
             "points_per_pacgum",
             "points_per_super_pacgum",
             "points_per_ghost",

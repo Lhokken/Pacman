@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from time import sleep
+import secrets
 
 import pygame
 from pygame.surface import Surface
@@ -65,17 +65,13 @@ class GamePage(Scene):
     WALL_BOTTOM = 4
     WALL_TOP = 1
 
-    # ------------------------------------------------------------
-    #   TIMER
-    # -------------------------------------------------------------
-    DEFAULT_LEVEL_DURATION_S = 180.0
-
     def __init__(self, app: GameApp, level: int = 0) -> None:
-        """Inizializza la scena di gioco.
+        """Initialize the game scene for the requested level.
 
         Args:
-            app: Istanza di `GameApp` che fornisce configurazione,
-                surface e switch di scena.
+            app   : Application providing configuration, display,
+                    and navigation.
+            level : Zero-based level index; zero starts a new game.
         """
         super().__init__(app)
 
@@ -90,11 +86,9 @@ class GamePage(Scene):
             self.maze_width = self.config.levels[level].width
             self.maze_height = self.config.levels[level].height
             self.maze_dim = (self.maze_height, self.maze_width)
-            # INTEGRAZIONE: corners in (row, col), come richiesto da
+            # INTEGRATION: corners in (row, col), as requested by
             # PacgumsManagement.try_to_eat -> `if (row, col) in
-            # self.corners`. La versione precedente usava (0, H-1) /
-            # (W-1, 0) / (W-1, H-1), cioè (col, row) — da cui il
-            # "bug gomma in alto a destra talvolta non viene mangiata".
+            # self.corners`.
             self.maze_corners = [
                 (0, 0),
                 (0, self.maze_width - 1),
@@ -114,21 +108,20 @@ class GamePage(Scene):
             # --------------------------------------------------------
             #   MANAGER
             # --------------------------------------------------------
-            # FontManager e AssetManager restano locali alla pagina:
-            # AssetManager è legato al tile_size corrente e non può
-            # essere condiviso con altre scene.
+            # FontManager and AssetManager remain local to the page:
+            # AssetManager is tied to the current tile_size and cannot
+            # be shared with other scenes.
             self.fonts = FontManager(self.assets_base)
             self.assets = AssetManager(self.assets_base, self.tile_size)
         # --------------------------------------------------------
         #   GAME ENTITY
         # --------------------------------------------------------
-        self.maze = self._generate_maze()
+        self._maze_seed = self.config.seed
+        self.maze = self._generate_maze(seed=self._maze_seed)
         spawn = PacmanPlayer.find_spawn(self.maze)
         if level == 0:
             self.player = PacmanPlayer(spawn[0], spawn[1], self.maze)
             self.current_level: int = 0
-            self.level_start_reset = 7
-            self.level_start: int = 0
             self.player.maze = self.maze
             self.player.maze_dim = self.maze_dim
             self.player.maze_corners = self.maze_corners
@@ -140,25 +133,40 @@ class GamePage(Scene):
             self.player.from_col = spawn[1]
             self.player.to_row = spawn[0]
             self.player.to_col = spawn[1]
-        # INTEGRAZIONE: GhostBase.__init__(g_row, g_col) -> passare
-        # (row, col). La versione precedente passava (x, y).
+            self.player.respawn = spawn
+        # UPDATE: GhostBase.__init__(g row, g col) -> pass # (row, col).
+        #         The previous version passed (x, y).
         self.ghosts = [Ghost(row, col) for row, col in self._ghost_spawn()]
-        for ghost in self.ghosts:
+        ghost_names = (
+            "blinky",
+            "clyde",
+            "inky",
+            "pinky"
+        )
+        for ghost, name in zip(self.ghosts, ghost_names):
+            ghost.name = name
             ghost.maze = self.maze
             ghost.maze_dim = self.maze_dim
         self.pacgums = PacgumManager(
             self.maze_dim,
             self.is_walkable,
-            {"pacgum": self.app.config.points_per_pacgum,
+            {
+                "pacgum": self.app.config.points_per_pacgum,
                 "super_pacgum": self.app.config.points_per_super_pacgum,
-                "ghost": self.config.points_per_ghost}
+                "ghost": self.config.points_per_ghost
+            },
+            coverage_percent=self.config.pacgum_coverage,
+            corners=self.maze_corners,
+            seed=self._maze_seed,
+            excluded_cells={spawn},
         )
-        self.pacgums.corners = self.maze_corners
+        self._debug_pacgum_baseline = 0
+        # SCORE LV 0 ---------------------------------------------
         if level == 0:
             self.score = 0
-        # --------------------------------------------------------
+        # ========================================================
         #   Renderer / Pannels
-        # --------------------------------------------------------
+        # ========================================================
         self.panel_manager = PanelManager(
             self.metrics.panel_layout,
             self.fonts,
@@ -167,26 +175,22 @@ class GamePage(Scene):
         )
         self.maze_renderer = MazeRenderer(self.maze, self.assets)
         self.entity_renderer = EntityRenderer(self.assets)
-        # --------------------------------------------------------
+        # ========================================================
         #   Timer + HUD
-        # --------------------------------------------------------
+        # ========================================================
         self.level_timer = Timer(
-            duration=self.DEFAULT_LEVEL_DURATION_S
+            duration=self.config.level_max_time
         )
         self.hud = HUD(
             font_title=self.fonts.font_title_small,
             font_value=self.fonts.font_white,
             timer=self.level_timer,
+            current_level=self.current_level + 1,
         )
         # --------------------------------------------------------
         #   Adapter ghost
         # --------------------------------------------------------
         self._frame = 0
-
-        # TODO(core-integration): Keep the live match/core object here when
-        # the game orchestration refactor provides one. `apply_cheats()`
-        # should delegate to that object instead of implementing gameplay
-        # rules in this UI scene.
 
     # Public methods -------------------------------------------------------
     # ======================================================================
@@ -195,20 +199,30 @@ class GamePage(Scene):
 
     def apply_cheats(self, cheats: dict[str, bool]) -> None:
         """Insert given data in player argument."""
+        debug_was_enabled = self.player.CHEAT_DATA["data_debug"]
         self.player.cheat_sync(cheats)
+        if (
+            not debug_was_enabled
+            and self.player.CHEAT_DATA["data_debug"]
+        ):
+            self._debug_pacgum_baseline = len(self.pacgums.eaten)
 
     def handle_events(self) -> None:
         """Handle game scene input events.
 
-        Forwards keyboard events to the player, handles
-        window resizing, and opens the pause menu
-        when ESC is pressed.
+        Forwards keyboard events to the player, handles window resizing,
+        and opens the pause menu when ESC is pressed.
         """
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.app.running = False
             elif event.type == pygame.VIDEORESIZE:
-                self.on_resize(event.w, event.h)
+                self.app.handle_window_resize(
+                    event.w,
+                    event.h
+                )
+            elif self.player.is_dying:
+                continue
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     from .pause_menu import PauseMenu
@@ -231,17 +245,28 @@ class GamePage(Scene):
         core, delegate the logic update to the player, and update the
         side panel if the score has changed.
         """
-        # UPDATE DEAD_STATUS -----------------------------------------
-        # if self.current_level > 8:
-        #     self.app.switch_scene(VictoryPage(self.app, self.score))
-        if self.player.lives <= -1 or self.level_timer.remaining <= 0:
-            i: float = 0.2
-            while i < 3:
-                sleep(i)
-                print("\a")
-                i = i * 5
-            # TODO: LOGIC pending - Raccolta dati reali del user
+        if self.player.is_dying:
+            death_duration = (
+                len(self.assets.player_death_frames)
+                * self.entity_renderer.PLAYER_DEATH_FRAME_DURATION_MS
+            )
+            # TODO: Usare time, get_ticks() e proibita
+            death_elapsed = (
+                pygame.time.get_ticks() - self.player.death_started_ms
+            )
+            if death_elapsed < death_duration:
+                return
+            if self.player.lives <= 0 or self.level_timer.remaining <= 0:
+                self.app.switch_scene(
+                    GameOverPage(
+                        self.app, score=self.score
+                    )
+                )
+                return
+            self.player.finish_death()
+        elif self.level_timer.remaining <= 0:
             self.app.switch_scene(GameOverPage(self.app, score=self.score))
+            return
 
         # CHEATING - extra lifes -------------------------------------
         if self.player.CHEAT_DATA["extra_lives"] is True:
@@ -253,6 +278,13 @@ class GamePage(Scene):
         score_gain = self.player.update(
             self.ghosts, self.pacgums, self.player
         )
+        # CONTROLLO: se entri in DEBUG il conteggio delle 10 pacgums
+        #            comincia, non prima.
+        if (
+            self.player.CHEAT_DATA["data_debug"]
+            and len(self.pacgums.eaten) - self._debug_pacgum_baseline >= 10
+        ):
+            self.pacgums.all_eaten = True
         self.panel_manager.update_lives(self.player.lives)
         if score_gain:
             self.score += score_gain
@@ -266,34 +298,23 @@ class GamePage(Scene):
             self.maze_width,
             self.maze_height,
         )
-        self.level_notifier()
-
-    def level_notifier(self) -> None:
-        """Play an audio notification for Pac-Man life loss.
-
-        When a Pac-Man life is lost, the user receives an audio
-        notification.
-        """
-        while self.level_start > 0:
-            print("\a")
-            sleep(self.level_start / 20)
-            self.level_start = int(self.level_start)
-            self.level_start -= 1
 
     def next_level(self) -> None:
         """Set all data in order to begin a new game level.
 
-        This occurs after eating all pacgums, pacman lives and score
-        remain unchanged
+        This occurs after eating all pacgums, pacman lives and
+        score remain unchanged
         """
         self.current_level += 1
         if self.current_level >= len(self.config.levels):
             self.app.switch_scene(VictoryPage(self.app, self.score))
-        self.player.level = self.current_level - 1
+            return
+        self.hud.set_level(self.current_level + 1)
+        self.player.level = self.current_level
         self.player.maze_height = self.maze_height = \
-            self.config.levels[self.current_level - 1].height
+            self.config.levels[self.current_level].height
         self.player.maze_width = self.maze_width = \
-            self.config.levels[self.current_level - 1].width
+            self.config.levels[self.current_level].width
         self.player.maze_dim = self.maze_dim = \
             (self.maze_height, self.maze_width)
         self.maze_corners = [
@@ -302,26 +323,40 @@ class GamePage(Scene):
             (self.maze_height - 1, 0),
             (self.maze_height - 1, self.maze_width - 1),
         ]
-        self.config.seed += 17
-        self.maze = self.player.maze = self._generate_maze()
+        # GENERATE SEED randomly ---------------------------------
+        self._maze_seed = secrets.randbits(32)
+        self.maze = self.player.maze = self._generate_maze(
+            seed=self._maze_seed
+        )
 
+        spawn = PacmanPlayer.find_spawn(self.maze)
+        self.player.respawn = spawn
         self.player.p_row, self.player.p_col = \
             self.player.from_row, self.player.from_col = \
             self.player.to_row, self.player.to_col = \
-            PacmanPlayer.find_spawn(self.maze)
+            spawn
 
+        # COVERAGE PUCGUMS ---------------------------------------
         self.pacgums = PacgumManager(
             self.maze_dim,
             self.is_walkable,
-            {"pacgum": self.app.config.points_per_pacgum,
+            {
+                "pacgum": self.app.config.points_per_pacgum,
                 "super_pacgum": self.app.config.points_per_super_pacgum,
-                "ghost": self.config.points_per_ghost}
+                "ghost": self.config.points_per_ghost,
+            },
+            coverage_percent=self.config.pacgum_coverage,
+            corners=self.maze_corners,
+            seed=self._maze_seed,
+            excluded_cells={spawn},
         )
-        self.pacgums.corners = self.maze_corners
-        # bug gomma in alto a destra talvolta non viene mangiata
-        # INTEGRAZIONE: risolto a monte dal fix di `maze_corners` /
-        # `is_walkable`. Il commento resta come promemoria.
+        self._debug_pacgum_baseline = 0
+        # BUG RESOLVED: the pellet in the top right corner sometimes doesn't
+        #               get eaten
+        # INTEGRATION : resolved upstream by the fix for `maze_corners` /
+        #              `is_walkable`. The comment remains as a reminder.
         self.maze_renderer = MazeRenderer(self.maze, self.assets)
+        self.on_resize(*self.app.screen.get_size())
         for i, ghost in enumerate(self.ghosts):
             ghost.corner = self.maze_corners[i]
             ghost.g_row, ghost.g_col = ghost.corner
@@ -330,15 +365,14 @@ class GamePage(Scene):
             ghost.maze = self.maze
             ghost.maze_dim = self.maze_dim
 
-        self.level_timer.reset(self.DEFAULT_LEVEL_DURATION_S)
-        self.level_start = self.level_start_reset
+        self.level_timer.reset(self.config.level_max_time)
 
     def on_resize(self, width: int, height: int) -> None:
         """Recalculate layout and update managers without recreating them.
 
         Args:
-            new_width : New window width in px.
-            new_height: New window height in px.
+            width : New window width in pixels.
+            height: New window height in pixels.
         """
         new_width = width
         new_height = height
@@ -362,13 +396,10 @@ class GamePage(Scene):
         """Draw the scene by delegating to the renderers.
 
         Args:
-            screen: Destination surface.
+            screen : Destination surface.
         """
+        # TODO: USARE assets manager
         screen.fill((20, 20, 30))
-
-        if self.metrics.too_small:
-            self._draw_too_small_hint(screen)
-            return
 
         # ===========================================================
         #   SCENE
@@ -388,35 +419,34 @@ class GamePage(Scene):
         # -----------------------------------------------------------
         # 4) PLAYER
         # -----------------------------------------------------------
-        player_center, player_progress = (
-            self._player_pixel_state(ox, oy)
-        )
-        # ------------------------------------------------------------
-        # 5) GHOST
-        # ------------------------------------------------------------
-        ghost_infos = self._build_ghost_infos()
-
-        # RIPRISTINATO: la chiave e di fatto dove dovrebbe essere
-        self.entity_renderer.draw_ghosts(
-            screen, ghost_infos,
-            frightened_flash=self._is_frightened_flash(),
-        )
-        # ------------------------------------------------------------
-        # 6) PACGUM
-        # ------------------------------------------------------------
-        ghost_positions = [(g.g_col, g.g_row) for g in self.ghosts]
+        player_center = self._player_pixel_state(ox, oy)
+        # -----------------------------------------------------------
+        # 5) PACGUM + PLAYER
+        # -----------------------------------------------------------
         self.entity_renderer.draw(
             screen,
             ox,
             oy,
             self.tile_size,
             player_center,
-            ghost_positions,
             self.maze,
             self.pacgums.eaten,
             self.player.is_moving,
-            player_progress,
-            self.player.direction
+            self.player.direction,
+            pacgum_cells=self.pacgums.placed,
+            player_dying=self.player.is_dying,
+            death_elapsed_ms=(
+                pygame.time.get_ticks() - self.player.death_started_ms
+                if self.player.is_dying else 0
+            ),
+        )
+        # -----------------------------------------------------------
+        # 6) GHOSTS on top of Pac-Man when sprites overlap
+        # -----------------------------------------------------------
+        ghost_infos = self._build_ghost_infos()
+        self.entity_renderer.draw_ghosts(
+            screen, ghost_infos,
+            frightened_flash=self._is_frightened_flash(),
         )
 
     # ==================================================================
@@ -424,12 +454,11 @@ class GamePage(Scene):
     # ==================================================================
     def _player_pixel_state(
         self, origin_x: int, origin_y: int
-    ) -> tuple[tuple[float, float], float]:
-        """Return the player's position and progress in pixels.
+    ) -> tuple[float, float]:
+        """Return the player's interpolated position in pixels.
 
-        If the player is stationary, progress is 0. If moving,
-        it linearly interpolates between `from_*` and `to_*` based on
-        the time elapsed since the start of the move.
+        If moving, it linearly interpolates between `from_*` and `to_*`
+        based on the time elapsed since the start of the move.
 
         Args:
             origin_x : X-coordinate of the top corner of the maze.
@@ -443,10 +472,17 @@ class GamePage(Scene):
         tile = self.tile_size
         half = tile // 2
 
+        if self.player.is_dying:
+            death_row, death_col = self.player.death_position
+            return (
+                origin_x + int(round(death_col * tile + half)),
+                origin_y + int(round(death_row * tile + half)),
+            )
+
         if not self.player.is_moving:
             cx = origin_x + self.player.p_col * tile + half
             cy = origin_y + self.player.p_row * tile + half
-            return (cx, cy), 0.0
+            return (cx, cy)
 
         elapsed = (
             pygame.time.get_ticks() - self.player.move_started_ms
@@ -464,7 +500,7 @@ class GamePage(Scene):
         cx = int(from_cx + (to_cx - from_cx) * progress)
         cy = int(from_cy + (to_cy - from_cy) * progress)
 
-        return (cx, cy), progress
+        return (cx, cy)
 
     def _is_frightened_flash(self) -> bool:
         """Indicate whether frightened ghosts should flash.
@@ -478,32 +514,13 @@ class GamePage(Scene):
             frame is in the "off" phase of the flashing cycle.
         """
         return self.ghosts[0].flashing
-        # power_timer = getattr(self.player, "power_timer", 0)
-        # return (
-        #     power_timer > 0
-        #     and power_timer < 120
-        #     and (power_timer // 10) % 2 == 0
-        # )
-
-    def _draw_too_small_hint(self, screen: Surface) -> None:
-        """Mostra un messaggio centrale se la finestra è troppo piccola.
-
-        TODO: Traduci in inglese
-        Args:
-            screen: Surface su cui disegnare il messaggio.
-        """
-        msg = self.fonts.font_white.render(
-            "Enlarge window to see the game"
-        )
-        rect = msg.get_rect(center=(
-            screen.get_width() // 2, screen.get_height() // 2
-        ))
-        screen.blit(msg, rect)
 
     # ==================================================================
     #   Generazione maze
     # ==================================================================
-    def _generate_maze(self) -> list[list[int]]:
+    def _generate_maze(
+        self, seed: int | None = None
+    ) -> list[list[int]]:
         """Generate and validates the maze used by the page.
 
         Returns:
@@ -518,9 +535,12 @@ class GamePage(Scene):
             generator = MazeGenerator(
                 size=(self.maze_width, self.maze_height),
                 perfect=False,
-                seed=self.config.seed,
+                seed=self.config.seed if seed is None else seed,
             )
-            maze = generator.maze
+            maze = [
+                [int(wall_mask) for wall_mask in row]
+                for row in generator.maze
+            ]
             if len(maze) != self.maze_height or any(
                 len(row) != self.maze_width for row in maze
             ):
@@ -531,24 +551,27 @@ class GamePage(Scene):
                 )
             return maze
         except Exception as e:
-            logger.error("Maze generation failed: %s", e)
-            raise RuntimeError(f"Failed to generate maze: {e}") from e
+            logger.error(
+                "Maze generation failed: %s",
+                e
+            )
+            raise RuntimeError(
+                f"Failed to generate maze: {e}"
+            ) from e
 
     def is_walkable(self, row: int, col: int) -> bool:
         """Indicate whether the cell `(row, col)` is walkable.
 
-        INTEGRAZIONE: la firma è (row, col) perché PacgumsManagement
-        chiama `walkable_fn(row, col)`. Il corpo accede a
-        `maze[row][col]`. La versione precedente usava (x, y) e
-        `maze[y][x]`, invertendo gli indici.
+        The argument order matches the callback expected by
+        ``PacgumsManagement`` and indexes the maze as ``maze[row][col]``.
 
         Args:
-            row: row coordinate of the cell (in cells).
-            col: column coordinate of the cell (in cells).
+            row : row coordinate of the cell (in cells).
+            col : column coordinate of the cell (in cells).
 
         Returns:
             `True` if the cell is within the boundaries and is not a solid
-            wall; `False` otherwise.
+             wall; `False` otherwise.
         """
         if row < 0 or col < 0 or row >= self.maze_height or \
                 col >= self.maze_width:
@@ -559,28 +582,21 @@ class GamePage(Scene):
     # ======================================================================
     #   Helper methods
     # ======================================================================
-    # def _sync_ghosts_from_player(self) -> None:
-    #     # NOTE: RIDONDANTE - RISOLTO
     def _build_ghost_infos(self) -> list[dict[str, object]]:
         """Construct ghost info for `EntityRenderer.draw_ghosts`.
 
-        INTEGRAZIONE: le coordinate sono in PIXEL, perché
-        `EntityRenderer.draw_ghosts` le usa direttamente come
-        `center` (la conversione cella->pixel è stata spostata nel
-        chiamante, vedi le righe commentate nel renderer).
+        Coordinates are converted to pixels here because the renderer uses
+        them directly as sprite centers.
 
-        L'interpolazione usa `Ghost.MOVE_STARTED_MS` /
-        `Ghost.GHOST_MOVE_DURATION`, aggiornati dal core in
-        `GhostBase.team_ghost`. `from_*` / `to_*` sono settati in
-        `GhostBase.blinky/clyde/inky/pinky`.
+        Interpolation uses ``Ghost.MOVE_STARTED_MS`` and
+        ``Ghost.GHOST_MOVE_DURATION``, updated by ``GhostBase.team_ghost``.
+        Movement endpoints are set by the ghost movement methods.
 
-        Il nome è letto con `getattr`: `GhostBase.name` è solo
-        un'annotazione di tipo in `__init__`, viene assegnato lazy
-        al primo `team_ghost`. Senza fallback, il primo frame
-        solleva `AttributeError`.
+        Ghost names are assigned when the game is created, before the first
+        render descriptor is built.
 
         Returns:
-            Una lista di dict con le chiavi attese dal renderer.
+            A list of descriptors consumed by the ghost renderer.
         """
         tile = self.tile_size
         half = tile // 2
@@ -596,10 +612,9 @@ class GamePage(Scene):
                 elapsed = (
                     pygame.time.get_ticks() - Ghost.MOVE_STARTED_MS
                 )
-                progress = (
-                    min(elapsed / (
-                        Ghost.GHOST_MOVE_DURATION - (
-                            self.current_level * 60)), 1.0)
+                progress = min(
+                    elapsed / Ghost.GHOST_MOVE_DURATION,
+                    1.0,
                 )
 
                 from_col = origin_col + ghost.from_col * tile + half

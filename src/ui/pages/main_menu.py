@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class MainMenu(Scene):
-    """Scena del menu principale."""
+    """Main menu scene for starting and navigating the game."""
 
     # ================================================================
     #   Init
@@ -77,6 +77,8 @@ class MainMenu(Scene):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.app.running = False
+            elif event.type == pygame.VIDEORESIZE:
+                self.app.handle_window_resize(event.w, event.h)
             elif event.type == pygame.KEYDOWN:
                 self._handle_key(event)
 
@@ -96,13 +98,6 @@ class MainMenu(Scene):
             ) % len(self.buttons)
         elif event.key == pygame.K_RETURN:
             self.buttons[self.selected_index].handle_event(event)
-        # ----------------------------------------------------------
-        # TODO: rimuovere a fine progetto — scorciatoie dev
-        # ----------------------------------------------------------
-
-        elif event.key == pygame.K_v:
-            from .end_screen import VictoryPage
-            self.app.switch_scene(VictoryPage(self.app, score=456))
 
     def draw(self, screen: Surface) -> None:
         """Draw the menu on the surface.
@@ -115,6 +110,7 @@ class MainMenu(Scene):
 
         self._layout_menu_block(screen)
         # TITLE -------------------------------------------
+        # TODO: FUNZIONE PROIBITA! get_rect()
         title_rect = (
             self.title_surface.get_rect(
                 center=(
@@ -145,6 +141,7 @@ class MainMenu(Scene):
             screen : Surface from which to read the current
                      dimensions.
         """
+        # TODO: FUNZIONE PROIBITA! get_width(), get_height()
         block = self._menu_layout.compute_block(
             screen.get_width(),
             screen.get_height(),
@@ -215,7 +212,9 @@ class MainMenu(Scene):
     def _show_highscores(self) -> None:
         """Show the high scores page."""
         from .hight_score import HighScorePage
-        self.app.switch_scene(HighScorePage(self.app))
+        self.app.switch_scene(
+            HighScorePage(self.app)
+        )
 
     def _show_instructions(self) -> None:
         """Show the game instructions page."""

@@ -1,10 +1,10 @@
 """Centralized UI configuration.
 
-Palette
+Palette:
     Define application's app colors.
-FontRole
+FontRole:
     Define semantic enum of typographic roles.
-Theme
+Theme:
     Resolves a FontRole via a FontManager and
     exposes the palette as a single access point.
 """
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 #   Interface UI - Palette
 # ======================================================================
 class Palette:
-    """Ccontains the color palette shared by all scenes.
+    """Contain the color palette shared by all scenes.
 
     Class containing only constants: not to be instantiated.
     """
@@ -53,9 +53,9 @@ class Palette:
 #   Interface UI - Typographic roles
 # ======================================================================
 class FontRole(str, Enum):
-    """Ruoli semantici dei font.
+    """Semantic font roles used by the interface.
 
-    Il valore di ogni membro è il nome dell'attributo su `FontManager`.
+    Each value names an attribute on ``FontManager``.
     """
 
     SCREEN_TITLE = "font_title_extraLarge"                      # 10.0
@@ -71,13 +71,7 @@ class FontRole(str, Enum):
 #   Interface UI - THEMES
 # ======================================================================
 class Theme:
-    """Controls the interface for accessing fonts and palettes.
-
-    It resolves a `FontRole` via a `FontManager` and exposes the palette
-    as a single point of access. Scenes receive a `Theme`, so they never
-    need to know the attribute name used in the `FontManager` or the color
-    tuples.
-    """
+    """Controls the interface for accessing fonts and palettes."""
 
     # ------------------------------------------------------------------
     #   Referencing the palette as a class attribute.

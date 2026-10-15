@@ -89,9 +89,7 @@ class Scene:
         Default:
             no operation. Scenes with screen-relative layouts
             (e.g., `GamePage`) override this method to recalculate
-            dimensions. It is invoked by `GameApp.toggle_fullscreen()`
-            after a mode change and by scenes receiving the
-            `pygame.VIDEORESIZE` event.
+            dimensions.
 
         Arguments:
             width  : New window width in pixels.

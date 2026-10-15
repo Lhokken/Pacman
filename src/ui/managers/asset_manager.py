@@ -14,6 +14,7 @@ from .asset_exceptions import (
     AssetNotFoundError,
     MissingRequiredAssetsError,
 )
+from .image_scaling import ImageScaler
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +68,12 @@ class AssetManager:
         logo_icon          : logo icon for panel.
         pacman_icon        : Pac-Man icon for lives panel.
     """
+    # ===================================================================
+    #   ENTETIES AND WALL ASSETS
+    # ===================================================================
+    #   We use nearest_neighbor() For respect subject MLX mandatory fn
+    #   for more details consult assets/Kanban Backlog/mlx_compliace.md
 
-    # -------------------------------------------------------------------
-    # Fallback: if a frame edge (``wall/double/*``) is missing,
-    # we try to replace it with the corresponding wall mask.
-    # Mask bit convention: 1=N (up), 2=E (right), 4=S (down), 8=W (left).
-    # -------------------------------------------------------------------
     _BORDER_FALLBACK_MASK: dict[str, int] = {
         "corner_tl": 2 | 4,   # E + S
         "corner_tr": 4 | 8,   # S + W
@@ -95,9 +96,18 @@ class AssetManager:
         self.tile_size = tile_size
         self.load_all()
 
+    # ====================================================================
+    #   LOAD - ALL ASSETS
+    # ====================================================================
     def load_all(self) -> None:
-        """FA TODO: Docstring."""
+        """Load all game sprites and validate required assets."""
+        # LOADING PATH ASSETS ------------------------------------------------
         self.player_frames, self.player_img = self._load_player()
+        self.player_death_frames = self._load_frame_list(
+            self.assets_base / "player" / "animation_dead",
+            ratio=0.8,
+            min_size=12,
+        )
         self.wall_tiles = self._load_wall_tiles()
         self.intersection_tiles = self._load_intersection_tiles()
         self.border_tiles = self._load_border_tiles()
@@ -138,7 +148,6 @@ class AssetManager:
     # ---------------------------------------------------------------
     #   Individual asset loaders
     # ---------------------------------------------------------------
-
     def _scale_entity_asset(
         self,
         image: Surface,
@@ -147,66 +156,96 @@ class AssetManager:
     ) -> Surface:
         """Scale entity sprites proportionally to the active tile size."""
         size = max(min_size, int(self.tile_size * ratio))
-        return pygame.transform.smoothscale(image, (size, size))
+        return ImageScaler.nearest_neighbor(image, (size, size))
 
-    def _load_player(self) -> tuple[list[Surface], Optional[Surface]]:
-        """Load player animation frames.
+    def _load_player(
+        self,
+    ) -> tuple[dict[str, list[Surface]], Optional[Surface]]:
+        """Load pre-oriented player frames and the static reference sprite."""
+        # ====================================================================
+        #   FRAMES ENTETIES DIRECTION
+        # ====================================================================
+        #   We use nearest_neighbor() For respect subject MLX mandatory fn
+        #   for more details consult assets/Kanban Backlog/mlx_compliace.md
 
-        Returns:
-            Tuple (frames, static_img).
-            frames: List of 3 Surfaces for walk animation.
-            static_img: First frame (for fallback/static display).
-        """
-        player_dir = self.assets_base / "player" / "animation"
-        frame_files = [
-            "Player_start.png",
-            "Player_mid.png",
-            "Player_end.png",
-        ]
-        frames: list[Surface] = []
-        static_img: Optional[Surface] = None
-        frame_files.sort()
-        for idx, fname in enumerate(frame_files):
-            path = player_dir / fname
-            if not path.exists():
-                logger.warning(
-                    "%s not found. Player animation frame missing.",
-                    path
-                )
-                continue
+        # LOADING PATH ASSETS ------------------------------------------------
+        player_dir = self.assets_base / "player"
+        animation_dir = player_dir / "animation"
+        frames_by_direction = {
+            direction: self._load_frame_list(
+                animation_dir / f"look_{direction}",
+                ratio=0.8,
+                min_size=12,
+            )
+            for direction in ("right", "left", "up", "down")
+        }
+        if not frames_by_direction["right"]:
+            frames_by_direction["right"] = self._load_frame_list(
+                animation_dir,
+                ratio=0.8,
+                min_size=12,
+            )
+        # --------------------------------------------------------------------
+        #   Player - Asset controls
+        # --------------------------------------------------------------------
+        reference_path = player_dir / "Player_img.png"
+        reference: Optional[Surface] = None
+        if reference_path.exists():
             try:
-                img = pygame.image.load(path).convert_alpha()
-                img = self._scale_entity_asset(img, ratio=0.8, min_size=12)
-                frames.append(img)
-                if idx == 0:
-                    static_img = img
-            except pygame.error as e:
-                logger.error(
-                    "Failed to load player frame %s: %s",
-                    fname,
-                    e
+                image = pygame.image.load(reference_path).convert_alpha()
+                reference = self._scale_entity_asset(
+                    image,
+                    ratio=0.8,
+                    min_size=12,
                 )
+            except pygame.error as error:
+                logger.error(
+                    "Failed to load player reference image %s: %s",
+                    reference_path,
+                    error,
+                )
+        else:
+            logger.warning(
+                "Player reference image missing: %s", reference_path
+            )
 
-        return frames, static_img
+        if reference is None:
+            reference = next(
+                (
+                    frames[0]
+                    for frames in frames_by_direction.values()
+                    if frames
+                ),
+                None,
+            )
+        return frames_by_direction, reference
 
     # ====================================================================
     #   Private helper methods for loading and scaling specific assets
     # ====================================================================
-
+    #   We use nearest_neighbor() For respect subject MLX mandatory fn
+    #   for more details consult assets/Kanban Backlog/mlx_compliace.md
     # --------------------------------------------------------------------
     #   Load wall tiles for each mask (0-15).
     # --------------------------------------------------------------------
     def _load_wall_tiles(self) -> dict[int, Surface]:
         """Load wall tiles for each mask.
 
-        I file ``wall_<mask>.png`` vivono in ``wall/intersections/``.
+        The ``wall_<mask>.png`` files live in ``wall/intersections/``.
 
         Returns:
             Dictionary mapping mask values to their corresponding
             tile surfaces.
         """
+        # ====================================================================
+        #   FRAMES WALL DIRECTION
+        # ====================================================================
+        # LOADING PATH ASSETS ------------------------------------------------
         assets_dir = self.assets_base / "wall" / "intersections"
         tiles: dict[int, Surface] = {}
+        # --------------------------------------------------------------------
+        #   wall - Asset controls
+        # --------------------------------------------------------------------
         for mask in range(16):
             tile_path = assets_dir / f"wall_{mask}.png"
             if not tile_path.exists():
@@ -218,7 +257,7 @@ class AssetManager:
                 continue
             try:
                 tile = pygame.image.load(tile_path).convert_alpha()
-                tile = pygame.transform.scale(
+                tile = ImageScaler.nearest_neighbor(
                     tile, (self.tile_size, self.tile_size)
                 )
                 tiles[mask] = tile
@@ -261,7 +300,7 @@ class AssetManager:
                 continue
             try:
                 tile = pygame.image.load(tile_path).convert_alpha()
-                tile = pygame.transform.scale(
+                tile = ImageScaler.nearest_neighbor(
                     tile, (self.tile_size, self.tile_size)
                 )
                 tiles[mask] = tile
@@ -271,9 +310,6 @@ class AssetManager:
                 )
         return tiles
 
-    # --------------------------------------------------------------------
-    #   Load border tiles for each mask (corner and T-junctions).
-    # --------------------------------------------------------------------
     # --------------------------------------------------------------------
     #   Load border tiles for the outer frame (with all-or-nothing fallback).
     # --------------------------------------------------------------------
@@ -319,7 +355,7 @@ class AssetManager:
                 continue
             try:
                 tile = pygame.image.load(path).convert_alpha()
-                tile = pygame.transform.scale(
+                tile = ImageScaler.nearest_neighbor(
                     tile, (self.tile_size, self.tile_size)
                 )
                 double_tiles[key] = tile
@@ -332,9 +368,12 @@ class AssetManager:
         if not missing_double:
             return double_tiles
 
-        # ---------------------------------------------------------------
+        # ----------------------------------------------------------------
         # 2. Fallback totale: ricostruisci tutta la cornice con le wall.
-        # ---------------------------------------------------------------
+        # ----------------------------------------------------------------
+        #   Fallback :  if a frame edge (``wall/double/*``) is missing, we
+        #               try to replace it with the corresponding wall mask.
+        # ----------------------------------------------------------------
         logger.warning(
             "Border frame incomplete (%d missing); rebuilding the whole "
             "frame from walls. Missing: %s",
@@ -361,23 +400,24 @@ class AssetManager:
     def _load_border_wall_tiles(self) -> dict[str, Surface]:
         """Load optional wall connectors that meet the outer frame.
 
-        I connettori vivono in una di queste cartelle (la prima che
-        esiste):
-            - ``wall/double/connectors/``
-            - ``wall/border/connectors/``
+        The manager searches these directories in order:
+        - ``wall/double/connectors/``
+        - ``wall/border/connectors/``
 
-        File attesi:
-            ``t_wall_up.png``, ``t_wall_down.png``,
-            ``t_wall_left.png``, ``t_wall_right.png``
+        Expected files:
+        - ``t_wall_up.png``, ``t_wall_down.png``,
+        - ``t_wall_left.png``, ``t_wall_right.png``
 
-        Se la cartella non esiste, restituisce un dizionario vuoto: il
-        ``MazeRenderer`` userà automaticamente il wall tile legacy come
-        fallback.
+        If neither directory exists, an empty mapping is returned and the
+        maze renderer falls back to legacy wall tiles.
 
         Returns:
-            Dictionary mapping connector direction ("up"|"down"|"left"|
-            "right") to Surface. Vuoto se i connettori non sono presenti.
+            Mapping of connector directions to surfaces, or an empty mapping.
         """
+        # ====================================================================
+        #   FRAMES WALL DOUBLE
+        # ====================================================================
+        # LOADING PATH ASSETS ------------------------------------------------
         candidate_dirs = [
             self.assets_base / "wall" / "double" / "connectors",
             self.assets_base / "wall" / "border" / "connectors",
@@ -399,6 +439,9 @@ class AssetManager:
             "t_wall_left":  "left",
             "t_wall_right": "right",
         }
+        #   INFO ----------------------------------------------------------
+        #   We use nearest_neighbor() For respect subject MLX mandatory fn
+        #   for more details consult assets/Kanban Backlog/mlx_compliace.md
         tiles: dict[str, Surface] = {}
         for file_name, key in file_to_key.items():
             path = assets_dir / f"{file_name}.png"
@@ -409,7 +452,7 @@ class AssetManager:
                 continue
             try:
                 tile = pygame.image.load(path).convert_alpha()
-                tile = pygame.transform.scale(
+                tile = ImageScaler.nearest_neighbor(
                     tile, (self.tile_size, self.tile_size)
                 )
                 tiles[key] = tile
@@ -425,15 +468,22 @@ class AssetManager:
     def _load_ghosts(
         self
     ) -> tuple[dict[str, GhostSprites], dict[str, list[Surface]]]:
-        """Carica tutti gli sprite dei ghost.
+        """Load directional and state sprites for all ghosts.
 
         Returns:
-            (ghosts, shared_frames) dove:
-            ghosts: dict name → GhostSprites
-            shared_frames: {"fear": [...], "fear_flash": [...]}
+            A mapping of ghost names to sprites and shared frightened frames.
         """
+        # ====================================================================
+        #   FRAMES GHOST
+        # ====================================================================
+        # LOADING PATH ASSETS ------------------------------------------------
         base = self.assets_base / "ghost"
-        directions = ["look_up", "look_down", "look_left", "look_right"]
+        directions = [
+            "look_up",
+            "look_down",
+            "look_left",
+            "look_right",
+        ]
 
         ghosts: dict[str, GhostSprites] = {}
         for name in ["blinky", "pinky", "inky", "clyde"]:
@@ -485,7 +535,16 @@ class AssetManager:
     def _load_frame_list(
         self, folder: Path, ratio: float, min_size: int
     ) -> list[Surface]:
-        """Carica tutti i *.png in una cartella, ordinati per nome."""
+        """Load and scale PNG frames from a directory in filename order.
+
+        Args:
+            folder   : Directory containing animation frames.
+            ratio    : Frame size as a fraction of the active tile size.
+            min_size : Minimum width and height for each frame.
+
+        Returns:
+            Loaded frames sorted by filename.
+        """
         if not folder.exists():
             return []
         frames: list[Surface] = []
@@ -499,7 +558,11 @@ class AssetManager:
                 )
                 frames.append(img)
             except pygame.error as e:
-                logger.error("Failed to load %s: %s", f, e)
+                logger.error(
+                    "Failed to load %s: %s",
+                    f,
+                    e
+                )
         return frames
 
     # --------------------------------------------------------------------
@@ -512,14 +575,20 @@ class AssetManager:
         min_size: int = 4,
     ) -> Surface:
         """Scale a gum asset proportionally to the current tile size."""
+        #   INFO ----------------------------------------------------------
+        #   We use nearest_neighbor() For respect subject MLX mandatory fn
+        #   for more details consult assets/Kanban Backlog/mlx_compliace.md
         size = max(min_size, int(self.tile_size * ratio))
-        return pygame.transform.smoothscale(image, (size, size))
+        return ImageScaler.nearest_neighbor(image, (size, size))
 
     # -------------------------------------------------------------------
     #   Load pacgum (small dot) image and scale it.
     # -------------------------------------------------------------------
     def _load_pacgum(self) -> Optional[Surface]:
-
+        # ===============================================================
+        #   IMG - PACGUM
+        # ===============================================================
+        # LOADING PATH ASSETS -------------------------------------------
         path = (
             self.assets_base / "gum" / "pacgum.png"
         )
@@ -596,11 +665,11 @@ class AssetManager:
         - wall masks 0-15         (``wall/intersections/wall_*.png``)
         - intersection masks 0-15 (``wall/intersections/intersection_*.png``)
 
-        The frame (``wall/double/*``) uses a fallback to the
-        wall assets: if missing, it does not prevent startup.
+        The frame (``wall/double/*``) uses a fallback to the:
+            wall assets : if missing, it does not prevent startup.
 
         Raises:
-        MissingRequiredAssetsError: If a mandatory asset is missing.
+            MissingRequiredAssetsError : If a mandatory asset is missing.
         """
         missing_walls = [
             m for m in range(16) if m not in self.wall_tiles

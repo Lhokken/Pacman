@@ -36,8 +36,8 @@ class CLIValidator:
 
         Raises:
             CliValidationError: If the configuration file path has the
-                wrong extension, does not exist, is not a regular file,
-                or is not readable.
+                                wrong extension, does not exist, is not a
+                                regular file, or is not readable.
         """
         config_path = Path(args.config_path)
         # ----------------------------------------------------------------
@@ -67,6 +67,7 @@ class CLIValidator:
         try:
             with config_path.open("r", encoding="utf-8"):
                 pass
+
         except OSError as error:
             raise CliValidationError(
                 "Cannot read configuration file "

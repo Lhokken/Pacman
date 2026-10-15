@@ -1,14 +1,7 @@
-"""In-Game HUD: tempo rimanente per il livello corrente.
+"""Render the in-game level indicator and remaining-time HUD.
 
-Requisiti di progetto (MLX-compliance):
-    - Nessun uso di pygame.font.Font, pygame.draw, o altre primitive
-      che MLX non offre. Solo blit di superfici pre-renderizzate
-      tramite BitmapFont.
-    - Il tempo è calcolato in Python puro (time.monotonic), non via
-      pygame.time: stesso approccio della guida (gettimeofday in C).
-
-L'HUD non possiede il timer: lo riceve dal chiamante (GamePage) e
-lo renderizza. Pausa e resume del timer sono responsabilità della Page.
+The HUD uses pre-rendered bitmap glyphs rather than TTF fonts or drawing
+primitives. Its timer is provided by the caller and uses a monotonic clock.
 """
 
 from __future__ import annotations
@@ -20,66 +13,94 @@ from ...core.timer import Timer
 
 
 class HUD:
-    """Displays the remaining time of a `Timer`.
+    """Displays the current level and remaining time of a `Timer`.
 
     Attributes:
-        font_title: BitmapFont for the "TIME" label.
-        font_value: BitmapFont for the numeric value.
-        timer: The Timer to display.
+        font_title : BitmapFont for the "TIME" label.
+        font_value : BitmapFont for the numeric value.
+        timer      : The Timer to display.
     """
 
     MARGIN_PX = 10
-    LABEL_VALUE_GAP_PX = 8
+    LABEL_VALUE_GAP_PX = 12
 
     def __init__(
         self,
         font_title: BitmapFont,
         font_value: BitmapFont,
         timer: Timer,
+        current_level: int = 1,
     ) -> None:
-        """Initialize the HUD..
+        """Initialize the HUD.
 
         Args:
-            font_title: Font for the label.
-            font_value: Font for the numerical value.
-            timer: The Timer to display. The HUD does not modify it.
+            font_title    : Font for the label.
+            font_value    : Font for the numerical value.
+            timer         : The Timer to display. The HUD does not modify it.
+            current_level : One-based level number to display.
         """
         self.font_title = font_title
         self.font_value = font_value
         self.timer = timer
+        self.current_level = current_level
+
+    # Pubblic ----------------------------------------------------------
+    def set_level(self, current_level: int) -> None:
+        """Update the one-based level number shown in the HUD."""
+        self.current_level = current_level
 
     # ==================================================================
     #   Rendering
     # ==================================================================
     def draw(self, screen: Surface) -> None:
-        """Draw 'TIME M:SS' centered at the top of the screen."""
-        label = self.font_title.render("TIME")
-        value = self.font_value.render(self._format_remaining())
+        """Draw 'LEVEL n TIME M:SS' centered at the top of the screen."""
+        # label level---------------------------------------------------
+        level_label = self.font_title.render("LEVEL")
+        level_value = self.font_value.render(str(self.current_level))
+        # label value ---------------------------------------------------=
+        time_label = self.font_title.render("TIME")
+        time_value = self.font_value.render(self._format_remaining())
 
         gap = self.LABEL_VALUE_GAP_PX
-        total_w = label.get_width() + gap + value.get_width()
-        total_h = max(label.get_height(), value.get_height())
+        section_gap = self.LABEL_VALUE_GAP_PX * 3
+        total_w = (
+            level_label.get_width() + gap + level_value.get_width()
+            + section_gap + time_label.get_width() + gap
+            + time_value.get_width()
+        )
+        total_h = max(
+            level_label.get_height(),
+            level_value.get_height(),
+            time_label.get_height(),
+            time_value.get_height(),
+        )
 
         x0 = (screen.get_width() - total_w) // 2
         y0 = self.MARGIN_PX
-
-        screen.blit(
-            label,
+        items = (
+            (level_label, x0),
+            (level_value, x0 + level_label.get_width() + gap),
             (
-                x0,
-                y0 + (total_h - label.get_height()) // 2
+                time_label,
+                x0 + level_label.get_width() + gap
+                + level_value.get_width() + section_gap,
+            ),
+            (
+                time_value,
+                x0 + level_label.get_width() + gap
+                + level_value.get_width() + section_gap
+                + time_label.get_width() + gap,
             ),
         )
-        screen.blit(
-            value,
-            (
-                x0 + label.get_width() + gap,
-                y0 + (total_h - value.get_height()) // 2,
-            ),
-        )
+        for surface, x in items:
+            screen.blit(
+                surface,
+                (x, y0 + (total_h - surface.get_height()) // 2),
+            )
 
+    # Private ----------------------------------------------------------
     # ==================================================================
-    #   Interni
+    #   FORMAT
     # ==================================================================
     def _format_remaining(self) -> str:
         """Use the Format the remaining time as M:SS."""

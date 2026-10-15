@@ -1,9 +1,9 @@
 """Custom exceptions for configuration parsing errors."""
 
 
-# --------------------------------------------------------------------------
+# ==========================================================================
 #   CLI configuration errors
-# --------------------------------------------------------------------------
+# ==========================================================================
 class ConfigError(Exception):
     """Base exception for configuration errors.
 
@@ -33,9 +33,9 @@ class ConfigParserError(ConfigError):
     """Raised when the configuration file cannot be parsed."""
 
 
-# --------------------------------------------------------------------------
+# ==========================================================================
 #   Data invalidity errors
-# --------------------------------------------------------------------------
+# ==========================================================================
 class MissingLevelError(ConfigError):
     """Raised if configuration file does not contain the required nbr of lv.
 

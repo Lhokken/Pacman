@@ -1,4 +1,4 @@
-"""High scores page layout (static - TODO: LOGIC PENDING)."""
+"""Calculate screen-relative metrics for the high-score page."""
 
 from __future__ import annotations
 

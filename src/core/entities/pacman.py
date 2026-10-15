@@ -17,21 +17,6 @@ if TYPE_CHECKING:
     from src.core.entities.pacgums import PacgumsManagement
 
 logger = logging.getLogger(__name__)
-#   Chapter VI - Game specifications  VI.2 Player -----------------------------
-#
-#   • Can move through corridors only (no walls).
-#   • Can move in 4 directions (up, down, left, right) using arrow keys or WASD
-#     (depending on your keyboard).
-#   • Starts with 3 lives.
-#   • Loses a life when touched by a ghost.
-#   • Respawns in the middle of the maze after losing a life.
-#   • Game over when all lives are lost.
-#   • Wins the level when all pacgums are eaten.
-#   • Wins the game when all levels are completed.
-#   • Eating a pacgum increases the score by X points.
-#   • Eating a super-pacgum (power pellet) increases the score by Y points and
-#     makes ghosts edible for a short time.
-#   • Eating an edible ghost increases the score by Z points
 
 
 class PacmanPlayer:
@@ -78,8 +63,9 @@ class PacmanPlayer:
         """Initialize the player with a starting position.
 
         Args:
-            p_row : Starting row in the maze grid. y
-            p_col : Starting column in the maze grid. x
+            row: Starting row in the maze grid.
+            col: Starting column in the maze grid.
+            maze: Maze represented as a grid of wall bitmasks.
         """
         self.respawn = (row, col)
         self.p_row = row
@@ -99,6 +85,9 @@ class PacmanPlayer:
         self.queued_direction: str | None = None
         self.is_moving = False
         self.move_started_ms = 0
+        self.is_dying = False
+        self.death_started_ms = 0
+        self.death_position = (float(row), float(col))
         self.direction: None | str = None
         self.maze = maze
         self.maze_height = len(maze)
@@ -116,7 +105,11 @@ class PacmanPlayer:
 
     @classmethod
     def cheat_sync(cls, parameter: dict[str, bool]) -> None:
-        """Fa TODO: docstring."""
+        """Update the shared cheat flags.
+
+        Args:
+            parameter: Mapping of cheat names to their enabled states.
+        """
         for key, value in parameter.items():
             if value is False:
                 cls.CHEAT_DATA[key] = False
@@ -125,7 +118,11 @@ class PacmanPlayer:
 
     @classmethod
     def init_data_set(cls, lives: int) -> None:
-        """Fa TODO: docstring."""
+        """Set the starting number of lives for new players.
+
+        Args:
+            lives: Configured starting number of lives.
+        """
         cls.INIT_DATA["Lives"] = lives
 
     @staticmethod
@@ -190,6 +187,8 @@ class PacmanPlayer:
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """Store a movement request from a keyboard event."""
+        if self.is_dying:
+            return
         if event.type != pygame.KEYDOWN:
             return
         directions = {
@@ -212,15 +211,10 @@ class PacmanPlayer:
                pacgums: PacgumsManagement,
                pacman: PacmanPlayer) -> int:
         """Advance movement and eat a pacgum when a move is complete."""
+        if self.is_dying:
+            return 0
         score_gain: int = 0
-        if self.CHEAT_DATA["data_debug"] is True and len(pacgums.eaten) > 9:
-            pacgums.all_eaten = True
         if self.CHEAT_DATA["ghost_freeze"] is False:
-            # TODO: Ghost movement is currently advanced only when
-            # Pacman completes a tile. Give ghosts their own timed
-            # movement/update so their speed and interpolation do not
-            # depend on Pacman's move duration.
-            # Risolto !!!
             ghost_time = (
                 pygame.time.get_ticks() - GhostBase.MOVE_STARTED_MS
             )
@@ -231,7 +225,8 @@ class PacmanPlayer:
                     rand=(50 + (self.level * 3)),
                     debug=self.CHEAT_DATA["data_debug"]
                     )
-                self.collision_check(ghosts, pacgums, score_gain)
+            if self.is_dying:
+                return score_gain
         if self.is_moving:
             elapsed_time = (
                 pygame.time.get_ticks() - self.move_started_ms
@@ -246,20 +241,10 @@ class PacmanPlayer:
                     self.p_row,
                     self.p_col,
                 )
-                score_gain += self.collision_check(ghosts, pacgums, score_gain)
-                if score_gain > 0 and \
-                        (pacman.p_row, pacman.p_col) in self.maze_corners:
-                    # -------------------------------------------------------
-                    # NOTE: STATO FLASH NON FUNZIONANTE - VEDI ANCHE PARSEY.PY
-                    # -------------------------------------------------------
-                    # RISOLTO!
-                    for ghost in ghosts:
-                        if ghost.state is not GhostState.EATEN:
-                            ghost.state = GhostState.FRIGHTENED
-                            ghost.flashing = False
-                            ghost.timer = ghost.set_timer
-                self._try_start_move()
-        else:
+        score_gain += self.collision_check(ghosts, pacgums)
+        if self.is_dying:
+            return score_gain
+        if not self.is_moving:
             self._try_start_move()
         return score_gain
 
@@ -267,12 +252,65 @@ class PacmanPlayer:
             self,
             ghosts: list[GhostBase],
             pacgums: PacgumsManagement,
-            score_gain: int
             ) -> int:
+        """Resolve interpolated contact with ghosts.
+
+        Args:
+            ghosts  : Ghosts currently active in the maze.
+            pacgums : Manager providing the points for eaten ghosts.
+
+        Returns:
+            Points earned for ghosts eaten during this check.
+        """
+        if self.is_dying:
+            return 0
+        now = pygame.time.get_ticks()
+        if self.is_moving:
+            player_progress = min(
+                max((now - self.move_started_ms) / self.MOVE_DURATION_MS, 0),
+                1,
+            )
+            player_row = (
+                self.from_row
+                + (self.to_row - self.from_row) * player_progress
+            )
+            player_col = (
+                self.from_col
+                + (self.to_col - self.from_col) * player_progress
+            )
+        else:
+            player_row = float(self.p_row)
+            player_col = float(self.p_col)
+
+        score_gain = 0
         for ghost in ghosts:
-            if (ghost.g_row, ghost.g_col) in \
-                    [(self.p_row, self.p_col),
-                        (self.from_row, self.from_col)]:
+            if now < ghost.collision_immune_until_ms:
+                continue
+            if GhostBase.MOVING:
+                ghost_progress = min(
+                    max(
+                        (now - GhostBase.MOVE_STARTED_MS)
+                        / GhostBase.GHOST_MOVE_DURATION,
+                        0,
+                    ),
+                    1,
+                )
+                ghost_row = (
+                    ghost.from_row
+                    + (ghost.to_row - ghost.from_row) * ghost_progress
+                )
+                ghost_col = (
+                    ghost.from_col
+                    + (ghost.to_col - ghost.from_col) * ghost_progress
+                )
+            else:
+                ghost_row = float(ghost.g_row)
+                ghost_col = float(ghost.g_col)
+
+            row_distance = player_row - ghost_row
+            col_distance = player_col - ghost_col
+            overlaps = row_distance**2 + col_distance**2 < 0.8**2
+            if overlaps:
                 if ghost.state == GhostState.FRIGHTENED:
                     ghost.state = GhostState.EATEN
                     score_gain += pacgums.dict_point["ghost"]
@@ -282,10 +320,15 @@ class PacmanPlayer:
                         self.CHEAT_DATA["invincible"] is False:
                     self.life_loss()
                     self.pacman_respawn(ghosts)
+                    break
         return score_gain
 
     def debug_print(self, pacman: PacmanPlayer) -> None:
-        """Print the debug."""
+        """Print player diagnostics when data-debug mode is enabled.
+
+        Args:
+            pacman: Player instance whose position and lives are reported.
+        """
         if self.CHEAT_DATA["data_debug"] is True:
             print(
                 f"Pacman pos: {pacman.p_row, pacman.p_col} "
@@ -294,11 +337,6 @@ class PacmanPlayer:
 
     def _try_start_move(self) -> None:
         """Start a movement if a direction is queued and the move is valid."""
-        # ------------------------------------------------------------------
-        #   DIREZIONE
-        # ----------------1--------------------------------------------------
-        # PLACEHOLDER ------------------------------------------------------
-        # RISOLTO
         direction = self.queued_direction
         self.direction = direction
         if direction is None:
@@ -331,25 +369,19 @@ class PacmanPlayer:
             self.move_started_ms = pygame.time.get_ticks()
 
     def pacman_respawn(self, ghosts: list[GhostBase]) -> None:
-        """Give each ghost a random position in the maze.
-
-        Given distance is far enough to let player continue game.
-        """
-        for i, _ in enumerate(ghosts):
-            while GhostBase.get_distance(
-                    (ghosts[i].g_row, ghosts[i].g_col),
-                    self.respawn) < round(
-                        (self.maze_height + self.maze_width) / 3.5) or \
-                        len(set(self.ghosts_places(ghosts))) != 4:
-                (ghosts[i].g_row, ghosts[i].g_col) = GhostBase.next_step(
-                    ghosts[i].g_row,
-                    ghosts[i].g_col,
-                    self.maze,
-                    self.maze_dim
-                )
+        """Give each ghost it's original corner position."""
+        for g in ghosts:
+            g.from_row, g.from_col = g.to_row, g.to_col = \
+                g.g_row, g.g_col = g.corner
 
     def ghosts_places(self, ghosts: list[GhostBase]) -> list[tuple[int, int]]:
-        """Return a list of tuples with ghost coordinates
+        """Return the row and column of each ghost.
+
+        Args:
+            ghosts: Ghosts whose positions are collected.
+
+        Returns:
+            A list of ``(row, column)`` positions.
         """
         ghosts_list: list[tuple[int, int]] = []
         for ghost in ghosts:
@@ -357,12 +389,40 @@ class PacmanPlayer:
         return ghosts_list
 
     def life_loss(self) -> None:
-        """Life loss manager.
+        """Start the death animation and decrement one life."""
+        if self.is_dying:
+            return
+        now = pygame.time.get_ticks()
+        if self.is_moving:
+            progress = min(
+                (now - self.move_started_ms) / self.MOVE_DURATION_MS,
+                1.0,
+            )
+            row = self.from_row + (self.to_row - self.from_row) * progress
+            col = self.from_col + (self.to_col - self.from_col) * progress
+            self.death_position = (row, col)
+        else:
+            self.death_position = (float(self.p_row), float(self.p_col))
 
-        Notify to game over page when pacman lose the last life
-        TODO: connect with game over page
-        """
-        print("\a")
+        print("\a", end="", flush=True)
         self.lives -= 1
-        if self.lives >= 0:
-            self.p_row, self.p_col = self.find_spawn(self.maze)
+        self.is_dying = True
+        self.death_started_ms = now
+        self.is_moving = False
+        self.move_started_ms = 0
+        self.queued_direction = None
+
+    def finish_death(self) -> None:
+        """Respawn at the maze center after the death animation."""
+        if self.lives <= 0:
+            return
+        row, col = self.respawn
+        self.p_row = self.from_row = self.to_row = row
+        self.p_col = self.from_col = self.to_col = col
+        self.death_position = (float(row), float(col))
+        self.direction = None
+        self.queued_direction = None
+        self.is_moving = False
+        self.move_started_ms = 0
+        self.death_started_ms = 0
+        self.is_dying = False

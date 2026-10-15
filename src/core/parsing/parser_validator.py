@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 from .parser_exceptions import (
-    InvalidConfigValueError,
     InvalidLevelError,
     MissingLevelError,
 )
@@ -60,9 +59,6 @@ class PostValidation:
     # Minimum number of levels required by the game specification
     MIN_LEVELS = 10
 
-    # Fraction of maze area that can reasonably be filled with pacgums
-    PACGUM_AREA_FRACTION = 3  # 1/3 of total area
-
     def __init__(self) -> None:
         """Initialize the post-validator."""
         self.issues: list[ValidationIssue] = []
@@ -74,23 +70,20 @@ class PostValidation:
         exceptions; non-critical issues are collected and returned.
 
         Args:
-            config: The configuration to validate.
+            config : The configuration to validate.
 
         Returns:
             A list of ValidationIssue objects (non-critical only).
 
         Raises:
-            MissingLevelError: If the number of levels is below the
-                minimum required.
-            InvalidLevelError: If a level has dimensions too small to
-                generate a playable maze.
-            InvalidConfigValueError: If pacgum count exceeds the maximum
-                possible for any level.
+            MissingLevelError : If the number of levels is below the
+                               minimum required.
+            InvalidLevelError : If a level has dimensions too small to
+                               generate a playable maze.
         """
         self.issues = []
         self._check_minimum_levels(config)
         self._check_level_dimensions_critical(config)
-        self._check_pacgum_capacity(config)
         self._check_time_reasonable(config)
         self._check_dimensions_odd(config)
         return self.issues
@@ -100,7 +93,7 @@ class PostValidation:
 
         Raises:
             MissingLevelError: If the configuration defines fewer than
-                the required number of levels.
+                               the required number of levels.
         """
         if len(config.levels) < self.MIN_LEVELS:
             raise MissingLevelError(
@@ -123,24 +116,6 @@ class PostValidation:
                     f"Level {i}: dimensions {level.width}x{level.height} "
                     f"are too small for a playable maze "
                     f"(minimum: {self.MIN_MAZE_WIDTH}x{self.MIN_MAZE_HEIGHT})"
-                )
-
-    def _check_pacgum_capacity(self, config: GameConfig) -> None:
-        """Raise InvalidConfigValueError if pacgum exceeds maze capacity.
-
-        Raises:
-            InvalidConfigValueError: If pacgum count cannot fit in any level.
-        """
-        for i, level in enumerate(config.levels):
-            # Estimate corridor cells: roughly 1/3 of total area
-            max_capacity = (
-                (level.width * level.height) // self.PACGUM_AREA_FRACTION
-            )
-            if config.pacgum > max_capacity:
-                raise InvalidConfigValueError(
-                    f"pacgum count ({config.pacgum}) exceeds maximum "
-                    f"capacity for level {i} "
-                    f"({level.width}x{level.height}, max {max_capacity})"
                 )
 
     def _check_time_reasonable(self, config: GameConfig) -> None:

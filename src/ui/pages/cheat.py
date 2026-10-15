@@ -38,17 +38,6 @@ class CheatPage(Scene):
     precedente senza ricreare la partita.
     """
 
-    # ================================================================
-    #   Stato dei cheat
-    #
-    #   TODO: ATTACCA AL CORE
-    #   Questi flag devono vivere nello stato di partita (es.
-    #   core/game/state.py) e essere letti da PacmanPlayer / GhostBase
-    #   / orchestratore. Qui sono attributi di CLASSE solo per non
-    #   perderli tra un'apertura e l'altra della pagina: una nuova
-    #   istanza di CheatPage viene creata ad ogni switch_scene.
-    # ================================================================
-
     invincible: bool = False
     data_debug: bool = False
     ghost_freeze: bool = False
@@ -155,26 +144,6 @@ class CheatPage(Scene):
                 self.font_option_selected,
                 on_select=make_toggle_callback(attr_name),
             ))
-        # --------------------------------------------------------------
-        # Fullscreen toggle (app-level, not a game cheat).
-        # State lives in GameApp.is_fullscreen, not CHEAT_DATA.
-        # --------------------------------------------------------------
-        self._fullscreen_button = Button(
-            pygame.Rect(0, 0, 500, 50),
-            self._fullscreen_label(),
-            self.font_option,
-            self.font_option_selected,
-            on_select=self._toggle_fullscreen,
-        )
-        self.buttons.append(self._fullscreen_button)
-
-        self.buttons.append(Button(
-            pygame.Rect(0, 0, 200, 50),
-            "Back",
-            self.font_option,
-            self.font_option_selected,
-            on_select=self._go_back,
-        ))
 
     # ================================================================
     #   Logica toggle
@@ -200,38 +169,17 @@ class CheatPage(Scene):
     def _apply_cheats(self) -> None:
         """Write the toggle states to the core."""
         # ============================================================
-        # `PacmanPlayer.CHEAT_DATA` is a class attribute!!
+        #   Update PacmanPlayer.CHEAT_DATA
         # ============================================================
-        # an active game session is not required to write to it.
-        # The previous `game_page is None` check caused any changes
-        # made from the main menu, before starting the game—to be lost.
-        # ------------------------------------------------------------
-        # NOTE: keep the payload consistent with `CHEAT_DATA`.
-        # `cheat_sync` expects booleans, not "ON"/"OFF" strings.
-        # ------------------------------------------------------------
-        PacmanPlayer.cheat_sync({
+        cheats = {
             name: bool(getattr(self, name))
             for _, name in self._TOGGLES
-        })
-
-    # ================================================================
-    #   Fullscreen (app-level toggle, non è un cheat del core)
-    # ================================================================
-    def _fullscreen_label(self) -> str:
-        """Build the Fullscreen button label from the app state."""
-        return (
-            f"Fullscreen: "
-            f"{'ON' if self.app.is_fullscreen else 'OFF'}"
-        )
-
-    def _toggle_fullscreen(self) -> None:
-        """Toggle fullscreen via GameApp and refresh the button label.
-
-        Non passa da ``_apply_cheats``: lo stato non è un cheat del core,
-        è una modalità della finestra gestita da ``GameApp``.
-        """
-        self.app.toggle_fullscreen()
-        self._fullscreen_button.set_text(self._fullscreen_label())
+        }
+        apply_cheats = getattr(self.game_page, "apply_cheats", None)
+        if apply_cheats is not None:
+            apply_cheats(cheats)
+        else:
+            PacmanPlayer.cheat_sync(cheats)
 
     # ================================================================
     #   Navigazione
@@ -258,8 +206,8 @@ class CheatPage(Scene):
         """Positions the title and buttons using `CheatLayout`.
 
         Args:
-            screen_w: Screen width in pixels.
-            screen_h: Screen height in pixels.
+            screen_w : Screen width in pixels.
+            screen_h : Screen height in pixels.
 
             Returns:
             The Y-coordinate of the title's center.
@@ -297,8 +245,7 @@ class CheatPage(Scene):
                     )
                 elif event.key == pygame.K_ESCAPE:
                     self._go_back()
-            elif event.type == pygame.KEYUP:
-                if event.key == pygame.K_RETURN:
+                elif event.key == pygame.K_RETURN:
                     self.buttons[self.selected_index].activate()
 
     def draw(self, screen: Surface) -> None:
@@ -319,6 +266,7 @@ class CheatPage(Scene):
         # SCREEN ------------------------------------------
         screen.blit(
             title,
+            # TODO: FUNZIONE PROIBITA! get_rect()
             title.get_rect(
                 center=(
                     screen.get_width() // 2, title_y

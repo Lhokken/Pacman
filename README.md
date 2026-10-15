@@ -1,251 +1,200 @@
-# Pac-Man: Architecture and UI Components
+*This project has been created as part of the 42 curriculum by fedegugl, gcerrete*
 
-A modular, clean, and extensible Python re-creation of the classic **Pac-Man** arcade game built with Pygame and customized for 42 School. The project features dynamic maze generation, configurable level rules, custom ghost AI, bitmap font rendering, responsive UI layouts, and structured command-line interface (CLI) error handling.
+# PAC-MAN
 
----
-
-## Table of Contents
 - [Description](#description)
 - [Instructions](#instructions)
+- [Graphics and UI](#graphics-and-ui)
 - [Resources](#resources)
 - [Configuration](#configuration)
 - [Highscore](#highscore)
 - [Maze Generation](#maze-generation)
 - [Implementation](#implementation)
 - [General Software Architecture](#general-software-architecture)
-
----
+- [Project Management](#project-management)
 
 ## Description
 
-**Pac-Man: Architecture and UI Components** is a software project developed to deliver an authentic, scalable, and fully configurable Pac-Man gameplay experience. The primary goal of the project is to combine low-level game mechanics (tile-based movement, BFS pathfinding for ghosts, dead-end removal, power pellets) with a robust UI architecture featuring custom layout math, screen responsiveness, and decoupled scene management.
-
-### Key Features
-- **Dynamic Maze Generation:** Procedurally generated mazes with dead-end removal (`braid`) and embedded "42" logo wall patterns.
-- **Configurable Gameplay:** JSON configuration file support for lives, points, level counts, maze dimensions, seeds, and level timers.
-- **Custom Ghost AI:** Four distinct ghosts (Blinky, Pinky, Inky, Clyde) implementing state transitions between `NORMAL` (chasing/hunting), `FRIGHTENED` (fleeing), and `EATEN` (respawning via BFS).
-- **Pure Surface Rendering & Bitmap Fonts:** Pixel-perfect UI rendering powered by custom PNG glyph bitmap fonts without relying on TTF engine abstractions.
-- **Robust CLI & Validation:** Strict command-line validation and JSON comment-stripping parser that gracefully reports errors without dumping raw Python tracebacks.
-
----
+This project is a configurable, keyboard-controlled Pac-Man game built with
+Python and Pygame for the 42 curriculum. It combines tile-based movement,
+pellet collection, ghost states, score and life tracking, ten configurable
+levels, and a responsive graphical interface. Mazes are supplied by the
+assigned external A-Maze-ing package.
 
 ## Instructions
 
-### Prerequisites
-- **Python:** Python 3.8 or higher.
-- **Pygame:** Version 2.0 or higher.
+### Requirements
 
-To install Pygame on your system:
+- Python 3.10 or later
+- [uv](https://docs.astral.sh/uv/) and GNU Make
+- Pygame 2.6.1 or later and NumPy 1.26 or later (installed by `uv`)
+
+From the repository root, install the project dependencies and assigned maze
+generator package, then run the game:
+
 ```bash
-pip install pygame
+make install
+make run
 ```
 
-### Installation
-Clone the repository and navigate into the project root directory:
-```bash
-git clone <repository_url>
-cd pac-man
-```
-
-### Execution
-The game requires exactly one positional command-line argument: the path to a valid `.json` configuration file.
+`make run` launches `pac-man.py` with `config.json`. The CLI also accepts one
+configuration path directly after dependencies have been installed:
 
 ```bash
 python3 pac-man.py config.json
 ```
 
-#### Debug Mode
-To enable full Python stack tracebacks and verbose logging during development or testing, run with the `PACMAN_DEBUG` environment variable set to `1`:
+Useful development targets:
+
 ```bash
-PACMAN_DEBUG=1 python3 pac-man.py config.json
+make debug   # Run through Python's debugger
+make lint    # Run flake8 and the required mypy checks
+make clean   # Remove Python and type-checker caches
+python3 -m unittest discover -s tests -v  # Run unit tests
 ```
 
----
+### Controls
+
+- In the main and pause menus, use Up/Down and Enter to navigate and select.
+- During play, use the arrow keys or WASD to move; Esc opens the pause menu.
+- In the name-entry screen, type up to 10 letters, digits, or spaces; use
+  Backspace to edit, Enter to save, or Esc to leave without saving.
+- The settings screen includes a fullscreen toggle.
+
+## Graphics and UI
+
+The game uses PNG artwork for Pac-Man, the four ghosts, pellets, maze walls,
+intersections, borders, and the 42 logo. The title, HUD, menus, and score
+panels use a custom bitmap font assembled from PNG glyphs rather than a TTF
+font renderer.
+
+The play screen has score and lives panels around a centered maze. Its layout
+recomputes tile size when the window or level dimensions change; the window
+cannot be reduced below 80% of the detected desktop resolution. Sprite
+resizing uses nearest-neighbor sampling on RGBA pixel buffers, with cached
+fitted panel artwork to avoid repeating image work every frame. See
+[`assets/mlx_compliance.md`](assets/mlx_compliance.md) for the documented
+Pygame-to-MLX-equivalent operations and their constraints.
 
 ## Resources
 
 ### References
-- **Pac-Man Dossier (Jammag):** Comprehensive reference on original arcade Pac-Man timings, ghost targeting logic, and cell mechanics.
-- **Pygame Documentation:** Surface blitting, event handling, sprite transformation, and display scaling API references.
-- **Breadth-First Search (BFS) Pathfinding:** Standard graph search algorithms for grid-based pathfinding and shortest path calculation.
-- **42 School Project Specifications:** Normative requirements regarding modular design, defensive error handling, and clean CLI architecture.
 
-### AI Usage Description
-Artificial Intelligence tools were utilized as a collaborative assistant during specific software engineering tasks:
-1. **Refactoring & Code Quality:** AI assisted in analyzing layout ratio calculations and standardizing docstrings across UI modules (`GameLayout`, `MenuLayout`, `PauseLayout`).
-2. **Defensive Logic & Edge Cases:** Assisted in auditing post-validation checks (e.g., cross-field validation of pacgum count vs. walkable maze area) and boundary handling.
-3. **Documentation:** Generating technical summaries, architecture diagrams, and structuring the `README.md` file based on codebase static analysis.
+- [Pac-Man Dossier](https://www.dossier.net/games/pacmanflash/)
+- [Pac-Man Ghost AI Explained](https://www.youtube.com/watch?v=ataGotQ7ir8),
+  Retro Game Mechanics Explained
+- [How Frightened Ghosts Decide Where to Go](https://www.youtube.com/watch?v=eFP0_rkjwlY),
+  Retro Game Mechanics Explained
+- [Pygame documentation](https://www.pygame.org/docs/)
+- [Project subject](assets/subject.md)
 
----
+### Use of AI
+
+AI assistants, including Claude and GitHub Copilot, were used to support code
+review, edge-case analysis, documentation, and project-planning materials.
+Suggestions were reviewed and tested by the team before being retained.
 
 ## Configuration
 
-The application loads its parameters from a JSON configuration file. Lines starting with `#` are automatically stripped as comments prior to parsing.
+The game reads a JSON configuration file. Full-line comments beginning with
+`#` are removed before parsing. Invalid values fall back to safe defaults with
+warnings; unknown keys are ignored. The repository's runnable ten-level
+example is [`config.json`](config.json).
 
-### Configuration Structure & Defaults
+| Key | Default | Constraints and meaning |
+| :--- | :--- | :--- |
+| `lives` | `3` | Integer from 1 to 99. |
+| `seed` | `42` | Integer from 0 to 4,294,967,295; passed to the maze generator. |
+| `pacgum_coverage` | `100` | Integer from 1 to 100; percentage of eligible walkable cells containing a pellet. At 100, every eligible cell gets one; Pac-Man's starting cell is intentionally empty. Four corner cells are super-pacgums, and the actual count is derived from each generated maze. |
+| `points_per_pacgum` | `10` | Integer from 0 to 100,000. |
+| `points_per_super_pacgum` | `50` | Integer from 0 to 100,000. |
+| `points_per_ghost` | `200` | Integer from 0 to 100,000. |
+| `level_max_time` | `90` | Integer from 1 to 3600 seconds. |
+| `highscore_filename` | `highscores.json` | A non-empty string; `.json` is appended if needed. Existing `highscore.txt` records are loaded as a fallback if the configured file is absent. |
+| `levels` | One 21 x 21 level in the parser fallback | A runnable configuration must contain at least 10 levels. Each level has `width` and `height`; each dimension defaults to 21, must be at least 5 for play, and should be odd. |
 
-| Key | Type | Default | Valid Range / Constraints | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| `lives` | `int` | `3` | `1` to `99` | Starting lives for Pac-Man. |
-| `seed` | `int` | `42` | `0` to `2^32 - 1` | Random seed for reproducible maze generation. |
-| `pacgum` | `int` | `42` | `0` to `1000` | Target pacgum threshold per level. |
-| `points_per_pacgum` | `int` | `10` | `0` to `100,000` | Score awarded per small pac-gum eaten. |
-| `points_per_super_pacgum` | `int` | `50` | `0` to `100,000` | Score awarded per super pac-gum (power pellet). |
-| `points_per_ghost` | `int` | `200` | `0` to `100,000` | Score awarded when eating a frightened ghost. |
-| `level_max_time` | `int` | `90` | `1` to `3600` (seconds) | Duration allowed per level before game over. |
-| `highscore_filename` | `string` | `"highscores.json"` | Non-empty `.json` string | File path used for saving and loading top scores. |
-| `levels` | `array` | `[{"width": 21, "height": 21}]` | Minimum 10 levels required | List of objects defining level dimensions (`width` x `height`, min `5x5`). |
-
-### Example `config.json`
-```json
-{
-  # Game settings
-  "lives": 3,
-  "seed": 42,
-  "pacgum": 42,
-  "points_per_pacgum": 10,
-  "points_per_super_pacgum": 50,
-  "points_per_ghost": 200,
-  "level_max_time": 180,
-  "highscore_filename": "highscores.json",
-  "levels": [
-    { "width": 21, "height": 21 },
-    { "width": 21, "height": 21 },
-    { "width": 23, "height": 23 },
-    { "width": 23, "height": 23 },
-    { "width": 25, "height": 25 },
-    { "width": 25, "height": 25 },
-    { "width": 27, "height": 27 },
-    { "width": 27, "height": 27 },
-    { "width": 29, "height": 29 },
-    { "width": 29, "height": 29 }
-  ]
-}
-```
-
----
+The checked-in configuration uses 10 levels, three lives, seed 42, and a
+155-second level timer. This meets the validator's recommended minimum for the
+largest configured maze. Missing or invalid numeric settings use the defaults
+above. Even maze dimensions produce a warning because maze generators usually
+work best with odd dimensions.
 
 ## Highscore
 
-### Mechanism
-The highscore system persists player achievements locally across game sessions:
-1. **Loading:** Upon boot, `GameEntry` reads the designated file (`highscore.txt` / `highscores.json`). It validates entries to ensure scores are non-negative integer values. Valid entries are populated into `GameApp.HIGHSCORE` as `(name, score)` tuples.
-2. **Name Entry:** Upon reaching `GameOverPage` or `VictoryPage`, players are prompted to enter a 1 to 5 character alphanumeric name using fixed slot rendering and interactive cursor guidance.
-3. **Saving & Capping:** Submitting a score appends the record to `GameApp.HIGHSCORE`, sorts the entries in descending order by score, clamps the array to the top 10 positions, and serializes the leaderboard back to disk.
+Scores are loaded at startup into an in-memory list, validated, sorted in
+descending order, and limited to the top 10. Records contain a player name and
+a non-negative integer score. Names accept ASCII letters, digits, and spaces,
+up to 10 characters. The main menu links to a dedicated high-score screen.
 
-### Design Rationale
-- **Lightweight File Persistence:** Storing scores as simple JSON structures avoids database overhead while remaining human-readable and easy to inspect or reset.
-- **Top 10 Capping:** Restricting the leaderboard to 10 entries guarantees instant sorting/serialization performance and cleanly aligns with the static 10-row `HighScorePage` UI layout.
-- **Fail-Safe Integrity:** Invalid or corrupted records trigger fallback warnings without causing application crashes, ensuring robust player experience.
-
----
+Scores are stored as JSON at the configured `highscore_filename`. If that file
+does not exist but the legacy `highscore.txt` file does, its records are loaded
+and carried forward when the next score is saved. Missing or malformed files do
+not prevent the game from starting, and invalid records are skipped.
 
 ## Maze Generation
 
-Maze generation is managed by the custom `MazeGenerator` class.
+Maze generation is delegated to the assigned `mazegenerator` package, which is
+installed by `make install` from the dependency under `packaging/`. The project
+does not implement or modify the generator. The first level uses the configured
+seed; each later level receives a fresh random seed. For every level, the
+adapter passes its configured width and height with `perfect=False`, then
+checks that the returned grid matches the requested dimensions. Generator
+failures are reported as a handled game-start error.
 
-### Generation Pipeline
-1. **Empty Grid Initialization:** Constructs an initial grid enclosed by perimeter wall bitmasks.
-2. **'42' Logo Embedding:** Inscribes the "42" pattern into the center of the grid, converting designated cells into solid walls (`mask = 15`) to serve as a signature central obstacle.
-3. **Iterative Depth-First Carving:** Carves corridors using an explicit stack-based DFS traversal. Using an explicit stack instead of recursion prevents Python recursion limit exceptions (`RecursionError`) on large mazes.
-4. **Braiding (Dead-End Elimination):** In standard mode (`perfect=False`), the `_braid()` method identifies dead-ends (cells with 3 surrounding walls) and carves an additional opening to adjacent non-obstacle cells. This creates loops, guaranteeing that Pac-Man is never trapped in a dead-end corridor.
-5. **Solvability & Path Calculation:** Executes a Breadth-First Search (`_find_short_path`) from entry to exit to calculate the shortest path string (e.g. `"NNEESW"`) and confirm that the maze is fully navigable.
-
----
+The package returns a grid of wall bitmasks. The UI uses those masks to draw
+walls and intersections; `MazeRenderer` keeps this rendering separate from
+player and ghost logic.
 
 ## Implementation
 
-### Tile-Based Responsive Rendering
-The maze layout is represented as a 2D matrix of integer wall bitmasks (`WALL_TOP=1`, `WALL_RIGHT=2`, `WALL_BOTTOM=4`, `WALL_LEFT=8`).
-- `GameLayout` computes column widths and calculates an optimal `tile_size` based on screen dimensions and padding constraints.
-- `MazeRenderer` queries preloaded tile surfaces from `AssetManager` (intersections, single walls, double outer borders) to assemble the visual maze dynamically.
+### Gameplay
 
-### Movement & Waypoint Interpolation
-- Pac-Man and ghosts transition between grid cells over fixed duration windows (`MOVE_DURATION_MS`).
-- Renderers calculate smooth sub-pixel rendering coordinates (`_player_pixel_state`, `_build_ghost_infos`) using linear time interpolation between `from_col/row` and `to_col/row`.
+- Pac-Man moves through walkable cells in four directions. Movement is
+  interpolated between cell centers for rendering.
+- Pac-gums award configured points. Super-pac-gums award points and make
+  ghosts frightened for a limited time.
+- Ghosts use maze pathfinding to chase Pac-Man, flee while frightened, and
+  return to their corner after being eaten.
+- Completing a level advances to the next configured maze; losing all lives or
+  running out of time ends the game.
 
-### Ghost Behavior & AI
-Each ghost maintains an independent state (`NORMAL`, `FRIGHTENED`, `EATEN`):
-- **Hunting (`NORMAL`):** Uses BFS pathfinding combined with a random perturbation factor (`rand`) to target Pac-Man while introducing unpredictable movement patterns.
-- **Fleeing (`FRIGHTENED`):** Calculates escape directions opposing Pac-Man's current position (`get_flight_run`).
-- **Eaten (`EATEN`):** Executes BFS pathfinding to navigate back to its designated corner cell for immediate respawn.
+### Rendering
 
-### Custom Bitmap Font System
-To maintain MLX compliance and eliminate external font dependencies:
-- `BitmapFont` loads individual PNG glyphs organized in color directories (`bianco`, `giallo`).
-- Text rendering blits pre-scaled sprite glyphs onto transparent Pygame surfaces without using `pygame.font.Font`.
-
----
+The UI is divided into scenes for the main menu, gameplay, pause/settings,
+instructions, high scores, game over, and victory. Layout classes calculate
+screen and panel geometry; asset managers load image and bitmap-font resources;
+renderers draw the maze, entities, and HUD. Resizing updates layout and the
+size-specific assets without changing the game rules.
 
 ## General Software Architecture
 
-The codebase follows a modular architecture separating CLI orchestration, core game logic, resource management, layout metrics, and scene rendering.
+The code is organized into three main areas:
 
-```
-pac-man/
-├── pac-man.py                   # Main entry point & boot sequence (GameEntry)
-├── src/
-│   ├── cli/                     # Command-line interface orchestration & validation
-│   │   ├── cli.py               # CLIApplication orchestrator
-│   │   ├── cli_args_parser.py   # Argument parser (_NoExitArgumentParser)
-│   │   ├── cli_validator_input.py # Input path & JSON validator
-│   │   ├── cli_error_handler.py # Central error handler (traceback suppression)
-│   │   └── cli_exceptions.py    # CLI exception hierarchy & exit codes
-│   │
-│   ├── core/                    # Core gameplay engine & configuration parsing
-│   │   ├── timer.py             # Monotonic time countdown manager
-│   │   ├── parsing/
-│   │   │   ├── parsey.py        # ConfigLoader & GameConfig JSON parser
-│   │   │   ├── parser_validator.py # PostValidation cross-field checks
-│   │   │   └── parser_exceptions.py # Custom configuration exceptions
-│   │   ├── entities/
-│   │   │   ├── pacman.py        # PacmanPlayer movement & collision logic
-│   │   │   ├── ghost.py         # GhostBase AI states & pathfinding (BFS)
-│   │   │   ├── pacgums.py       # PacgumsManagement (pellet tracking)
-│   │   │   └── entity_exceptions.py # Core entity exceptions
-│   │   └── mazegenerator.py     # Procedural maze generator & braiding
-│   │
-│   └── ui/                      # Presentation layer & Pygame UI
-│       ├── app.py               # GameApp main loop & scene manager
-│       ├── scene.py             # Scene base class (lifecycle hooks)
-│       ├── components/          # Reusable UI widgets
-│       │   ├── bitmap_font.py   # PNG glyph font renderer
-│       │   ├── button.py        # Keyboard-navigable text button
-│       │   ├── hud.py           # In-game countdown HUD
-│       │   └── panels.py        # Side panels (Score, Lives, Highscore, Logo)
-│       ├── layout/              # Pure math layout calculators
-│       │   ├── game_layout.py   # 3-column responsive screen layout
-│       │   ├── game_page_layout.py # GamePage metrics wrapper
-│       │   ├── menu_layout.py   # Main menu block positioning
-│       │   ├── pause_layout.py  # Pause menu layout
-│       │   ├── cheat_layout.py  # Settings menu layout
-│       │   ├── end_screen_layout.py # Victory/GameOver page metrics
-│       │   ├── hight_score_layout.py # Highscore table layout
-│       │   └── instructions_layout.py # Instruction page metrics
-│       ├── managers/            # Asset, Font, and Panel lifecycle managers
-│       │   ├── asset_manager.py # Sprite loading, caching, and scaling
-│       │   ├── font_manager.py  # Preset bitmap font instance registry
-│       │   ├── panel_manager.py # Side panel orchestration
-│       │   └── asset_exceptions.py # Asset loading exceptions
-│       ├── pages/               # Game scene screens
-│       │   ├── main_menu.py     # MainMenu scene
-│       │   ├── game_page.py     # Active gameplay scene
-│       │   ├── pause_menu.py    # Pause menu scene
-│       │   ├── cheat.py         # Cheat & settings scene
-│       │   ├── Instruction_page.py # Instructions scene
-│       │   ├── hight_score.py   # HighScorePage scene
-│       │   └── end_screen.py    # EndScreenPage (GameOverPage & VictoryPage)
-│       └── renderers/           # Specialized drawing delegation
-│           ├── renderer.py      # Static rendering helper methods
-│           ├── maze_renderer.py # Tile-based maze rendering
-│           └── entity_renderer.py # Pac-Man, Ghost, & Pellet renderers
+- `src/cli/` validates command-line input and reports configuration errors.
+- `src/core/` parses and validates configuration, and owns player, ghost,
+  pellet, and timer logic.
+- `src/ui/` owns the Pygame application loop, scenes, layout, asset managers,
+  panels, and rendering.
+
+The runtime flow is:
+
+```mermaid
+flowchart TD
+    Entry[pac-man.py] --> CLI[src/cli]
+    CLI --> Config[ConfigLoader and PostValidation]
+    Config --> App[GameApp and Scene]
+    App --> GamePage[GamePage]
+    GamePage --> Maze[External A-Maze-ing generator]
+    GamePage --> Core[Player, ghosts, pac-gums]
+    GamePage --> UI[Layouts, AssetManager, renderers]
 ```
 
-### Key Subsystem Relationships
+## Project Management
 
-1. **Boot Sequence:** `pac-man.py` (`main`) → `CLIErrorHandler.run()` → `GameEntry.run()` → `CLIApplication.run()` parses CLI args, validates path via `CLIValidator`, loads JSON via `ConfigLoader`, runs `PostValidation`, and initializes `GameApp`.
-2. **Scene & State Management:** `GameApp` maintains the active `Scene` (`current_scene`). Scene transitions occur via `app.switch_scene()`, which executes lifecycle hooks (`on_pause`, `on_resize`, `on_resume`).
-3. **Gameplay Loop (`GamePage`):**
-   - **Events:** Keyboard inputs are forwarded to `PacmanPlayer.handle_event()`.
-   - **Update:** `GamePage.update()` advances player movement, updates ghost timers/AI (`GhostBase.team_ghost()`), checks pellet consumption (`PacgumsManagement.try_to_eat()`), updates side panels (`PanelManager`), and monitors win/loss conditions (`VictoryPage`/`GameOverPage`).
-   - **Draw:** Delegated to `MazeRenderer.draw()` for grid rendering, `EntityRenderer.draw()` for player and pellets, `EntityRenderer.draw_ghosts()` for animated ghosts, `PanelManager.draw()` for UI side panels, and `HUD.draw()` for level time tracking.
+The team used a project plan, a Kanban backlog, progress tracking, and an
+acceptance-test checklist. UI work was primarily handled by `fedegugl`, core
+gameplay by `gcerrete`, with CLI, parsing, and reviews shared.
+
+- [Project management overview](assets/Kanban%20Backlog/README.md)
+- [Project plan](assets/Kanban%20Backlog/project_plan.md)
+- [Progress tracking and decision log](assets/Kanban%20Backlog/Progress_tracking.md)

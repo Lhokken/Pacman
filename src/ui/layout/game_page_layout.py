@@ -1,22 +1,6 @@
 """Game page layout.
 
-Compose `GameLayout` (3 column grid + maze) and add the
-page metrics:
-
-    - position of the maze in pixels
-    - current tile size
-    - HUD rect (countdown)
-    - `too_small` flag
-
-The graphic "knobs" of the page are all here. Change
-aspect ratio, padding, HUD position = change this file.
-
-NOTE: sprite sizes (player, ghost, pacgum) are NOT
-here — they live in `AssetManager`, which calculates them from the
-tile_size. For regulate them, act on the internal ratios of AssetManager.
-
-Conventions like other layouts: return dataclass, `compute()`,
-class ratios overridable via `__init__(**overrides)`.
+Compose `GameLayout` nd add the page metrics.
 """
 
 from __future__ import annotations
@@ -29,7 +13,7 @@ from .game_layout import GameLayout
 
 @dataclass(frozen=True)
 class GamePageMetrics:
-    """Metriche della pagina (snapshot del frame corrente)."""
+    """Snapshot of the game page's calculated layout metrics."""
 
     panel_layout: GameLayout           # grid + maze (from GameLayout)
     maze_origin: tuple[int, int]       # top-left of the maze in pixels
@@ -58,7 +42,14 @@ class GamePageLayout:
     HUD_H_RATIO: float = 0.06
 
     def __init__(self, **overrides: dict) -> None:
-        """Fa TODO: docstring."""
+        """Initialize the layout with optional class-attribute overrides.
+
+        Args:
+            overrides : Layout attribute names and replacement values.
+
+        Raises:
+            AttributeError : If an override name is not a layout attribute.
+        """
         for key, value in overrides.items():
             if not hasattr(type(self), key):
                 raise AttributeError(

@@ -9,22 +9,20 @@ class AssetError(Exception):
     """Base class for all asset-related errors.
 
     Attributes:
-        message: User-friendly error message.
+        message : User-friendly error message.
     """
 
     def __init__(self, message: str) -> None:
-        """Crea Titolo docstring.
+        """Initialize the exception with a user-facing message.
 
-        TODO: Inserisci descrizione.
+        Args:
+            message : Error message suitable for logging or display.
         """
         super().__init__(message)
         self.message = message
 
     def __str__(self) -> str:
-        """Crea Titolo docstring.
-
-        TODO: Inserisci descrizione.
-        """
+        """Return the user-facing error message."""
         return self.message
 
 
@@ -32,9 +30,10 @@ class AssetNotFoundError(AssetError):
     """Raised when a required asset file cannot be found or loaded."""
 
     def __init__(self, asset_path: str | Path) -> None:
-        """Crea Titolo docstring.
+        """Initialize an error for a missing or unreadable asset.
 
-        TODO: Inserisci descrizione.
+        Args:
+            asset_path: Path to the asset that could not be loaded.
         """
         self.asset_path = asset_path
         super().__init__(
@@ -46,9 +45,11 @@ class UnsupportedGlyphError(AssetError):
     """Raised when a requested font glyph is not available in the font."""
 
     def __init__(self, glyph: str, font_name: str = "") -> None:
-        """Crea Titolo docstring.
+        """Initialize an error for an unsupported bitmap glyph.
 
-        TODO: Inserisci descrizione.
+        Args:
+            glyph     : Character unavailable in the selected font.
+            font_name : Optional name of the font that lacks the glyph.
         """
         self.glyph = glyph
         self.font_name = font_name

@@ -42,8 +42,8 @@ class CLIErrorHandler:
 
     Attributes:
         exit_on_error: If ``True`` (default), the handler calls ``sys.exit``
-            after reporting an error. Set to ``False`` if you want to handle
-            the error in a different way (e.g., during tests).
+                       after reporting an error. Set to ``False`` if you want
+                       to handle the error in a different way.
     """
 
     def __init__(
@@ -53,7 +53,7 @@ class CLIErrorHandler:
 
         Args:
             exit_on_error: Whether to terminate the program after handling
-                an error.
+                           an error.
         """
         self.exit_on_error = exit_on_error
 
@@ -63,19 +63,18 @@ class CLIErrorHandler:
     def install_global_exception_handler(self) -> None:
         """Install a global handler for unhandled exceptions.
 
-        This catches exceptions that escape every ``try``/``except``
-        (for example, errors raised during interpreter shutdown or
-        inside callbacks). It never prints a traceback unless
-        ``PACMAN_DEBUG=1``.
+        This catches exceptions that escape every ``try``/``except``.
+        It never prints a traceback unless ``PACMAN_DEBUG=1``.
         """
-        handler = self  # per chiarezza nel closure
+        # for clarity within the closure
+        handler = self
 
         def handle_exception(
             exc_type: type[BaseException],
             exc_value: BaseException,
             exc_tb: TracebackType | None,
         ) -> None:
-            # Lascia passare KeyboardInterrupt e SystemExit.
+            # Let KeyboardInterrupt and SystemExit pass through.
             if issubclass(
                 exc_type, (KeyboardInterrupt, SystemExit)
             ):
@@ -105,9 +104,9 @@ class CLIErrorHandler:
         a generic error and the program exits with code 1.
 
         Args:
-            func: The function to execute.
-            *args: Positional arguments passed to ``func``.
-            **kwargs: Keyword arguments passed to ``func``.
+            func     : The function to execute.
+            *args    : Positional arguments passed to ``func``.
+            **kwargs : Keyword arguments passed to ``func``.
 
         Returns:
             The return value of ``func`` if no error occurs, otherwise
@@ -191,7 +190,7 @@ class CLIErrorHandler:
             )
         else:
             logger.error(
-                "Avvia con PACMAN_DEBUG=1 per il traceback completo."
+                "Launch with PACMAN_DEBUG=1 for the full traceback."
             )
 
     def _report_unhandled(
@@ -202,8 +201,8 @@ class CLIErrorHandler:
         """Log an exception that escaped every try/except.
 
         Args:
-            error: The exception instance.
-            exc_tb: The traceback object.
+            error  : The exception instance.
+            exc_tb : The traceback object.
         """
         logger.critical(
             "[CRITICAL] Fatal error: %s",
@@ -230,13 +229,15 @@ class CLIErrorHandler:
         """Print the error message to stderr and optionally exit.
 
         Args:
-            message: The user-friendly error message.
-            exit_code: The process exit code to use.
+            message   : The user-friendly error message.
+            exit_code : The process exit code to use.
         """
         # --------------------------------------------------------------
         # Step 1: Write error message to stderr for clean console output
         # --------------------------------------------------------------
-        sys.stderr.write(f"[ERROR]: {message}\n")
+        sys.stderr.write(
+            f"[ERROR]: {message}\n"
+        )
         sys.stderr.flush()
 
         # --------------------------------------------------------------

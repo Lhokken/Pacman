@@ -12,6 +12,7 @@ from ..managers.asset_exceptions import (
     AssetNotFoundError,
     UnsupportedGlyphError,
 )
+from ..managers.image_scaling import ImageScaler
 
 
 logger = logging.getLogger(__name__)
@@ -25,11 +26,11 @@ class BitmapFont:
     lowercase, digits, and a set of punctuation characters.
 
     Attributes:
-        color_name: The color subfolder name ("bianco" or "giallo").
-        char_width: Width of each glyph in pixels (after scaling).
-        char_height: Height of each glyph in pixels (after scaling).
-        scale: Scaling factor applied to all glyphs.
-        _glyphs: Mapping from character to scaled Surface.
+        color_name  : The color subfolder name ("bianco" or "giallo").
+        char_width  : Width of each glyph in pixels (after scaling).
+        char_height : Height of each glyph in pixels (after scaling).
+        scale       : Scaling factor applied to all glyphs.
+        _glyphs     : Mapping from character to scaled Surface.
     """
 
     # ----------------------------------------------------------------------
@@ -74,11 +75,11 @@ class BitmapFont:
         """Initialize the font and load glyphs.
 
         Args:
-            color_name: "bianco" or "giallo" (subfolder under char/).
-            assets_base: Root path containing char/ directory.
-            scale: Scaling factor (1.0 = original size).
-            char_size: Expected size (width, height) of each glyph file.
-                Used to validate and scale if necessary.
+            color_name  : "white" or "yellow" (subfolder under char/).
+            assets_base : Root path containing char/ directory.
+            scale       : Scaling factor (1.0 = original size).
+            char_size   : Expected size (width, height) of each glyph file.
+                          Used to validate and scale if necessary.
         """
         self.color_name = color_name
         self.scale = scale
@@ -88,6 +89,15 @@ class BitmapFont:
         self._load_glyphs(assets_base)
 
     # Pubblic Methods ---------------------------------------------------------
+    # =========================================================================
+    #   supports_character
+    # =========================================================================
+    def supports_character(self, character: str) -> bool:
+        """Return whether this font can render one character."""
+        return len(character) == 1 and (
+            character == " " or character in self._glyphs
+        )
+
     # =========================================================================
     #   RENDER
     # =========================================================================
@@ -100,12 +110,8 @@ class BitmapFont:
         Returns:
             A pygame Surface with the text drawn left-to-right.
         """
-        # Commento logica -------------------------------------------------
-        # TODO: validate that text is a string before calling len().
         glyph_width = self.char_width
         glyph_height = self.char_height
-        # TODO: handle pygame.error and MemoryError if surface allocation
-        # fails.
         surface = pygame.Surface(
             (len(text) * glyph_width, glyph_height), pygame.SRCALPHA
         )
@@ -160,7 +166,7 @@ class BitmapFont:
             # space (handled separately) --------------------------------------
             if subdir is None:
                 continue
-            # Commento logica -------------------------------------------------
+
             candidate_filenames = [base_filename] + self._FILENAME_ALIASES.get(
                 char, []
             )
@@ -171,8 +177,6 @@ class BitmapFont:
                     ".png.png",
                 ):
                     path = base / subdir / f"{filename}{ext}"
-                    # TODO: handle OSError raised by exists() on inaccessible
-                    # paths.
                     if path.exists():
                         try:
                             img = pygame.image.load(path).convert_alpha()
@@ -180,23 +184,20 @@ class BitmapFont:
                                 self.char_width,
                                 self.char_height,
                             ):
-                                img = pygame.transform.scale(
+                                img = ImageScaler.nearest_neighbor(
                                     img,
                                     (self.char_width, self.char_height),
                                 )
                             glyph = img
                             break
-                        # TODO: include OSError and MemoryError for filesystem
-                        # and allocation failures.
                         except (pygame.error, OSError, MemoryError) as e:
                             raise UnsupportedGlyphError(
                                 f"Failed to load glyph {path}: {e}"
                             ) from e
                 if glyph is not None:
                     break
-            # Commento logica -------------------------------------------------
+
             if not glyph:
-                # TODO: report the missing character and all paths attempted.
                 raise UnsupportedGlyphError(
                     f"Unsupported glyph: {char!r}"
                 )

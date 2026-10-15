@@ -15,14 +15,14 @@ class FontManager:
     the game screens.
 
     Attributes:
-        font_white: Standard white font used for general text.
-        font_value_med: White font used for medium-sized numeric values.
-        font_value_big: White font used for large values.
-        font_title_small: Yellow font used for smaller titles.
-        font_value_med_y: Yellow font used for medium-sized values.
-        font_title_big: Yellow font used for larger titles.
-        font_title_extra: Yellow font used for emphasized headings.
-        font_title_extraLarge: Yellow font used for very large headings.
+        font_white            : Standard white font used for general text.
+        font_value_med        : White font used for medium-sized numeric values.
+        font_value_big        : White font used for large values.
+        font_title_small      : Yellow font used for smaller titles.
+        font_value_med_y      : Yellow font used for medium-sized values.
+        font_title_big        : Yellow font used for larger titles.
+        font_title_extra      : Yellow font used for emphasized headings.
+        font_title_extraLarge : Yellow font used for very large headings.
     """
 
     def __init__(self, assets_base: Path) -> None:
@@ -31,7 +31,6 @@ class FontManager:
         Args:
             assets_base: Root path containing char/ directory.
         """
-        # TODO: VERIFICARE che tutti i font sono stati usati, delete if not
         # =================================================================
         #   FONT BIANCO
         # =================================================================

@@ -16,6 +16,7 @@ import pygame
 from .scene import Scene
 from .pages.main_menu import MainMenu
 from .managers.asset_manager import AssetManager
+from .managers.asset_exceptions import AssetError
 from .managers.font_manager import FontManager
 from src.core.parsing.parsey import GameConfig
 
@@ -33,17 +34,17 @@ class GameApp:
         screen        : Current window surface.
         clock         : Pygame clock used to cap the frame rate at 60 FPS.
         running       : `True` as long as the main loop should continue.
-        is_fullscreen : Current screen mode state.
         debug         : If `True`, enables development shortcuts within scenes.
         assets_base   : Path to the `assets/img` folder.
         asset_manager : Shared assets, linked to `ASSETS_TILE_SIZE`.
         font_manager  : Fonts shared across all scenes.
         current_scene : Currently active scene.
     """
+
     HIGHSCORE: list[tuple[str, int]] = []
     ASSETS_TILE_SIZE = 40
     ASSETS_SUBDIR = ("assets", "img")
-    SWITCH_INPUT_COOLDOWN_FRAMES = 15
+    MIN_WINDOW_RATIO = 0.8
 
     # ==================================================================
     #   Helper statici
@@ -113,7 +114,6 @@ class GameApp:
 
         try:
             pygame.init()
-            pygame.key.set_repeat(200, 100)
         except pygame.error as e:
             logger.error(
                 "Failed to initialize pygame: %s",
@@ -135,8 +135,11 @@ class GameApp:
             )
             desktop_width, desktop_height = 1200, 800
 
-        screen_width = int(desktop_width * 0.8)
-        screen_height = int(desktop_height * 0.8)
+        self.minimum_window_size = (
+            max(1, int(desktop_width * self.MIN_WINDOW_RATIO)),
+            max(1, int(desktop_height * self.MIN_WINDOW_RATIO)),
+        )
+        screen_width, screen_height = self.minimum_window_size
 
         try:
             self.screen = pygame.display.set_mode(
@@ -150,12 +153,6 @@ class GameApp:
 
         self.clock = pygame.time.Clock()
         self.running = True
-        self.is_fullscreen = False
-        # --------------------------------------------------------------
-        # Cooldown di input post-switch.
-        # --------------------------------------------------------------
-        self._input_cooldown = 0
-
         # ---------------------------------------------------------------
         # --- Shared assets/fonts: creati UNA volta, riusati da tutti ---
         # ---------------------------------------------------------------
@@ -194,41 +191,22 @@ class GameApp:
             self.debug,
         )
 
-    # ==================================================================
-    #   Fullscreen - scene switching
-    # ==================================================================
-    def toggle_fullscreen(self) -> None:
-        """Toggles between windowed and full-screen modes."""
-        # NOTE: After switching modes, notifies the current scene of
-        #       the new dimensions via `on_resize`, ensuring that
-        #       screen-relative metrics (maze, panels, HUD) are
-        #       recalculated even if pygame does not emit a `VIDEORESIZE`
-        #       event for the toggle.
-        self.is_fullscreen = not self.is_fullscreen
-        if self.is_fullscreen:
-            self.screen = pygame.display.set_mode(
-                (0, 0), pygame.FULLSCREEN
-            )
-        else:
-            try:
-                desktop_info = pygame.display.Info()
-                desktop_w = desktop_info.current_w
-                desktop_h = desktop_info.current_h
-            except (IndexError, pygame.error):
-                desktop_w, desktop_h = 1200, 800
-            self.screen = pygame.display.set_mode(
-                (
-                    int(desktop_w * 0.8),
-                    int(desktop_h * 0.8)
-                ),
-                pygame.RESIZABLE,
-            )
-        # `set_mode` can change the surface size without!! --------
-        # emitting VIDEORESIZE: Force the notification to the scene.
-        new_w, new_h = self.screen.get_size()
-        self.current_scene.on_resize(new_w, new_h)
+    def handle_window_resize(self, width: int, height: int) -> None:
+        """Resize the window, enforcing the desktop-relative minimum."""
 
-        logger.info("Fullscreen toggled: %s", self.is_fullscreen)
+        min_width, min_height = self.minimum_window_size
+        target_size = (max(width, min_width), max(height, min_height))
+        was_clamped = target_size != (width, height)
+
+        self.screen = pygame.display.set_mode(target_size, pygame.RESIZABLE)
+        if was_clamped:
+            logger.info(
+                "Window resize below %dx%d rejected; restored to %dx%d.",
+                min_width,
+                min_height,
+                *self.screen.get_size(),
+            )
+        self.current_scene.on_resize(*self.screen.get_size())
 
     def switch_scene(self, scene: Scene) -> None:
         """Change the current scene.
@@ -236,7 +214,7 @@ class GameApp:
             1. Notifies the old scene that it is about to be left
                (hook `on_pause`).
             2. Replaces the current scene.
-            3. Activates a short input cooldown (prevents key repeat).
+            3. Routes subsequent events to the new scene immediately.
             4. Notifies the new scene of the current screen size
                (hook `on_resize`).
             5. Notifies the new scene that it is active (hook `on_resume`).
@@ -247,11 +225,11 @@ class GameApp:
         if self.current_scene is not None:
             self.current_scene.on_pause()
         self.current_scene = scene
-        self._input_cooldown = self.SWITCH_INPUT_COOLDOWN_FRAMES
 
         # Ogni scena che diventa attiva deve conoscere le dimensioni
-        # correnti della surface: potrebbero essere cambiate mentre
-        # era in pausa (es. fullscreen toggled da PauseMenu).
+        # correnti della finestra, perché alcune (GamePage) hanno layout
+        # relativi alla dimensione dello schermo. L'hook `on_resize`
+        # viene invocato anche quando la finestra viene ridimensionata.
         w, h = self.screen.get_size()
         scene.on_resize(w, h)
 
@@ -268,25 +246,31 @@ class GameApp:
         """
         try:
             while self.running:
-                if self._input_cooldown > 0:
-                    self._input_cooldown -= 1
-                    self._drain_events_during_cooldown()
-                else:
-                    self.current_scene.handle_events()
 
+                self.current_scene.handle_events()
+                self._enforce_minimum_window_size()
                 self.current_scene.update()
                 self.current_scene.draw(self.screen)
+
                 pygame.display.flip()
                 self.clock.tick(60)
         except KeyboardInterrupt:
             logger.info(
                 "Shutdown requested from terminal"
             )
+        except ModuleNotFoundError as e:
+            logger.error(
+                "Required Python module '%s' not found. "
+                "Check the virtual environment and dependencies.",
+                e.name,
+            )
         except pygame.error as e:
             logger.error(
                 "Pygame error in main loop: %s",
                 e
             )
+        except AssetError as e:
+            logger.error("Asset error in main loop: %s", e)
         except Exception:
             logger.exception(
                 "Unexpected error in main loop"
@@ -300,14 +284,11 @@ class GameApp:
     # ==================================================================
     #   Interni
     # ==================================================================
-    def _drain_events_during_cooldown(self) -> None:
-        """Consumes the event queue without passing events to the scene.
+    def _enforce_minimum_window_size(self) -> None:
+        """Restore the desktop-relative minimum after an undersized resize."""
 
-        During the post-switch cooldown, we want to ignore keyboard and
-        mouse input, but we must still count QUIT events.
-        """
-        # closing the window via the 'X' button: -----------------------
-        # IT MUST terminate the application, even during time window.
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
+        width, height = self.screen.get_size()
+        min_width, min_height = self.minimum_window_size
+        if width >= min_width and height >= min_height:
+            return
+        self.handle_window_resize(width, height)

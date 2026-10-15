@@ -13,18 +13,16 @@ class CoreError(Exception):
     """
 
     def __init__(self, message: str) -> None:
-        """Crea Titolo docstring.
+        """Initialize the exception with a user-facing message.
 
-        TODO: Inserisci descrizione.
+        Args:
+            message : Error message suitable for logging or display.
         """
         super().__init__(message)
         self.message = message
 
     def __str__(self) -> str:
-        """Crea Titolo docstring.
-
-        TODO: Inserisci descrizione.
-        """
+        """Return the user-facing error message."""
         return self.message
 
 
@@ -32,9 +30,10 @@ class EntityError(CoreError):
     """Raised when a required asset file cannot be found or loaded."""
 
     def __init__(self, asset_path: str | Path) -> None:
-        """Crea Titolo docstring.
+        """Initialize an error for an entity asset path.
 
-        TODO: Inserisci descrizione.
+        Args:
+            asset_path : Path associated with the entity error.
         """
         self.asset_path = asset_path
         super().__init__(

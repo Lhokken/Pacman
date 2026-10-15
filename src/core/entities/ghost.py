@@ -5,22 +5,9 @@ current direction, behavioral state and corner position (used
 for respawn).
 """
 
-# TODO: Implementare lo stato comune dei ghost: posizione, direzione,
-# velocita e stato comportamentale (normale, frightened, eaten).
-# TODO: Delegare il movimento su griglia al modulo comune di movement.
-
-# classe base:
-# proprietà fisiche comuni (posizione, direzione corrente, velocità base),
-# riferimento composto allo stato comportamentale attivo
-# (non eredita, lo possiede),
-# e il Direction Resolver come metodo/funzione condivisa — dato che è puro
-# algoritmo
-# identico per tutti e quattro i fantasmi, ha senso viva qui come
-# comportamento di base piuttosto che duplicato altrove.
-
 from __future__ import annotations
 from enum import Enum
-from random import randint
+from random import choice, randint
 from collections import deque
 from typing import Deque
 import math
@@ -49,30 +36,40 @@ class GhostBase:
     """It represents a ghost in the labyrinth.
 
     Attributes:
-        g_col   : Current column. x
-        g_row   : Current row. y
-        direction: Current direction(None if stopped).
-        speed    : Base speed (units of cells per second,
+        g_col     : Current column. x
+        g_row     : Current row. y
+        direction : Current direction(None if stopped).
+        speed     : Base speed (units of cells per second,
                    per hour constant and not used).
-        state    : Behavioral state (default GhostState.NORMAL).
-        corner   : Tuple (x, y) of the corner cell assigned to
+        state     : Behavioral state (default GhostState.NORMAL).
+        corner    : Tuple (x, y) of the corner cell assigned to
                    ghost for respawn.
     """
 
     MOVING = True
+    # The duration of a single ghost move, in milliseconds.
     GHOST_MOVE_DURATION = 800
+    # The time in milliseconds when the ghost started moving.
     MOVE_STARTED_MS = 0
+    # The duration of immunity after respawn, in milliseconds.
+    RESPAWN_IMMUNITY_DURATION_MS = 3000
 
     def __init__(
             self,
             g_row: int,
             g_col: int,
             ) -> None:
+        """Initialize a ghost at a maze cell.
+
+        Args:
+            g_row : Starting row.
+            g_col : Starting column.
+        """
         self.name: str                     # Ghost name
         self.g_row = g_row                 # Current row
         self.g_col = g_col                 # Current column
-        self.to_row = g_row
-        self.to_col = g_col
+        self.to_row = g_row                # Destination row
+        self.to_col = g_col                # Destination column
         self.from_row = g_row
         self.from_col = g_col
         self.coord = (g_row, g_col)
@@ -85,6 +82,7 @@ class GhostBase:
         self.ghosts: list[GhostBase]       # tuple[int, int] | bool = (0, 0)
         self.set_timer: int = 30
         self.timer: int = self.set_timer
+        self.collision_immune_until_ms: int = 0
         self.maze: list[list[int]]
         self.maze_dim: tuple[int, int]
 
@@ -104,16 +102,31 @@ class GhostBase:
         row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
             row, col, = ghost.hunting(
-                ghost.maze, rand, player_pos, row, col, ghost.maze_dim)
+                ghost.maze,
+                rand,
+                player_pos,
+                row, col,
+                ghost.maze_dim
+            )
         elif ghost.state == GhostState.FRIGHTENED:
             row, col = cls.get_flight_run(
-                (row, col), player_pos, ghost.maze_dim, ghost.maze, rand)
+                (row, col),
+                player_pos,
+                ghost.maze_dim,
+                ghost.maze,
+                rand
+            )
             ghost.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            row, col = ghost.eaten_mod(ghost, ghost.maze, row, col)
-        while (row, col) in gh_places:
-            (row, col) = cls.next_step(
-                row, col, ghost.maze, ghost.maze_dim)
+            row, col = ghost.eaten_mod(
+                ghost,
+                ghost.maze,
+                row,
+                col
+            )
+        row, col = cls._resolve_single_step(
+            ghost, (row, col), gh_places
+        )
         ghost.row_col_update(row, col)
         if debug is True:
             ghost.debug_ghost(ghost)
@@ -135,16 +148,27 @@ class GhostBase:
         row, col = (ghost.g_row, ghost.g_col)
         if ghost.state == GhostState.NORMAL:
             row, col, = ghost.hunting(
-                ghost.maze, rand, player_pos, row, col, ghost.maze_dim)
+                ghost.maze,
+                rand,
+                player_pos,
+                row,
+                col,
+                ghost.maze_dim
+            )
         elif ghost.state == GhostState.FRIGHTENED:
             row, col = cls.get_flight_run(
-                (row, col), player_pos, ghost.maze_dim, ghost.maze, rand)
+                (row, col),
+                player_pos,
+                ghost.maze_dim,
+                ghost.maze,
+                rand
+            )
             ghost.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
             row, col = ghost.eaten_mod(ghost, ghost.maze, row, col)
-        while (row, col) in gh_places:
-            (row, col) = cls.next_step(
-                row, col, ghost.maze, ghost.maze_dim)
+        row, col = cls._resolve_single_step(
+            ghost, (row, col), gh_places
+        )
         ghost.row_col_update(row, col)
         if debug is True:
             ghost.debug_ghost(ghost)
@@ -173,13 +197,17 @@ class GhostBase:
             ghost.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
             row, col = ghost.eaten_mod(ghost, ghost.maze, row, col)
-        while (row, col) in gh_places:
-            (row, col) = cls.next_step(
-                row, col, ghost.maze, ghost.maze_dim)
+        row, col = cls._resolve_single_step(
+            ghost, (row, col), gh_places
+        )
         ghost.row_col_update(row, col)
         if debug is True:
             ghost.debug_ghost(ghost)
-        ghost.get_direction(ghost, row, col)
+        ghost.get_direction(
+            ghost,
+            row,
+            col
+        )
 
     @classmethod  # sud est
     def pinky(
@@ -194,25 +222,50 @@ class GhostBase:
         gh_places = ghost.ghost_check(ghosts[0], ghosts[1], ghosts[2])
         if not hasattr(ghost, "name"):
             ghost.name = "pinky"
-        row, col = (ghost.g_row, ghost.g_col)
+        row, col = (
+            ghost.g_row,
+            ghost.g_col
+        )
         if ghost.state == GhostState.NORMAL:
             row, col, = ghost.hunting(
-                ghost.maze, rand, player_pos, row, col, ghost.maze_dim)
+                ghost.maze,
+                rand,
+                player_pos,
+                row,
+                col,
+                ghost.maze_dim
+            )
         elif ghost.state == GhostState.FRIGHTENED:
             row, col = cls.get_flight_run(
-                (row, col), player_pos, ghost.maze_dim, ghost.maze, rand)
+                (row, col),
+                player_pos,
+                ghost.maze_dim,
+                ghost.maze,
+                rand
+            )
             ghost.ghost_timer(ghost)
         elif ghost.state == GhostState.EATEN:
-            row, col = ghost.eaten_mod(ghost, ghost.maze, row, col)
-        while (row, col) in gh_places:
-            (row, col) = cls.next_step(
-                row, col, ghost.maze, ghost.maze_dim)
+            row, col = ghost.eaten_mod(
+                ghost,
+                ghost.maze,
+                row,
+                col
+            )
+        row, col = cls._resolve_single_step(
+            ghost, (row, col), gh_places
+        )
         ghost.row_col_update(row, col)
         if debug is True:
             ghost.debug_ghost(ghost)
         ghost.get_direction(ghost, row, col)
 
     def row_col_update(self, row: int, col: int) -> None:
+        """Record a ghost's current cell and movement endpoints.
+
+        Args:
+            row : Destination row.
+            col : Destination column.
+        """
         self.from_row = self.g_row
         self.from_col = self.g_col
         self.to_row = row
@@ -220,6 +273,40 @@ class GhostBase:
         self.g_row = row
         self.g_col = col
         self.coord = (row, col)
+
+    @classmethod
+    def _resolve_single_step(
+        cls,
+        ghost: GhostBase,
+        target: tuple[int, int],
+        occupied: tuple[tuple[int, int], ...],
+    ) -> tuple[int, int]:
+        """Keep each ghost move to one free, orthogonal maze cell."""
+        current = (ghost.g_row, ghost.g_col)
+        if target == current:
+            return current
+
+        candidates = [
+            cell for cell in cls.get_neighbours(
+                current[0], current[1], ghost.maze
+            )
+            if cell not in occupied
+        ]
+        if target in candidates:
+            return target
+        if not candidates:
+            return current
+
+        best_distance = min(
+            abs(cell[0] - target[0]) + abs(cell[1] - target[1])
+            for cell in candidates
+        )
+        best_candidates = [
+            cell for cell in candidates
+            if abs(cell[0] - target[0]) + abs(cell[1] - target[1])
+            == best_distance
+        ]
+        return choice(best_candidates)
 
     def ghost_check(
         self,
@@ -230,7 +317,7 @@ class GhostBase:
             tuple[int, int],
             tuple[int, int]
             ]:
-        """Return a tuple of three tuple each with coordinates of one ghost"""
+        """Return the positions of the other three ghosts."""
         return (
             (ghost1.g_row, ghost1.g_col),
             (ghost2.g_row, ghost2.g_col),
@@ -238,7 +325,7 @@ class GhostBase:
         )
 
     def debug_ghost(self, ghost: GhostBase) -> None:
-        """Simple debug method, used to monitor ghost data."""
+        """Monitor ghost data."""
         print(
             ghost.state,
             ghost.name,
@@ -253,11 +340,24 @@ class GhostBase:
             row: int,
             col: int
             ) -> tuple[int, int]:
-        """While ghost is in eaten mode, this method calculate path
-         to its corner"""
+        """Move an eaten ghost one step toward its assigned corner.
+
+        Args:
+            ghost: Ghost returning to its corner.
+            maze : Maze wall-bitmask grid.
+            row  : Current row.
+            col  : Current column.
+
+        Returns:
+            The next row and column.
+        """
         if ghost.corner == (row, col):
             ghost.state = GhostState.NORMAL
             ghost.timer = ghost.set_timer
+            ghost.collision_immune_until_ms = (
+                pygame.time.get_ticks()
+                + ghost.RESPAWN_IMMUNITY_DURATION_MS
+            )
         else:
             result = ghost.bfs(maze, ghost.corner, (row, col))
             if isinstance(result, tuple):
@@ -272,7 +372,7 @@ class GhostBase:
             rand: int,
             debug: bool
             ) -> None:
-        """This method call each ghost"""
+        """Update each ghost once using the shared player position."""
         cls.blinky(ghosts, player_pos, rand, debug)
         cls.clyde(ghosts, player_pos, rand, debug)
         cls.inky(ghosts, player_pos, rand, debug)
@@ -283,8 +383,16 @@ class GhostBase:
     def get_neighbours(
             cls, row: int, col: int, maze: list[list[int]]
             ) -> list[tuple[int, int]]:
-        """This method return a list with possible path from
-        current location."""
+        """Return reachable orthogonal neighbors of a maze cell.
+
+        Args:
+            row  : Current row.
+            col  : Current column.
+            maze : Maze wall-bitmask grid.
+
+        Returns:
+            Reachable neighboring cells as ``(row, column)`` pairs.
+        """
         result: list[tuple[int, int]] = []
         if cls.wall_check(row, col, maze, Direction.NORD):
             result.append((row - 1, col))
@@ -304,7 +412,7 @@ class GhostBase:
             maze: list[list[int]],
             direction: str
             ) -> bool:
-        """This method check if the direction is open or closed."""
+        """Check if the direction is open or closed."""
         if direction == Direction.NORD:
             if maze[row][col] not in (1, 3, 5, 7, 9, 11, 13):
                 return True
@@ -325,15 +433,18 @@ class GhostBase:
             start: tuple[int, int],
             end: tuple[int, int]
             ) -> tuple[int, int]:
-        """
-        Find the shortest path from start to end using breadth-first search.
+        """Return the next cell along a shortest path to the target.
 
-        Performs a standard BFS over the passable cell graph, writing
-        increasing step counts into index [0] of each visited cell. On
-        reaching the end, back-traces via decreasing step values to recover
-        the optimal path, storing it in cls.way (end → start order).
+        The search uses breadth-first search and backtracks from the target
+        to recover the first move from the starting cell.
 
-        Return one position, the next step to end.
+        Args:
+            maze  : Maze wall-bitmask grid.
+            start : Starting cell as ``(row, column)``.
+            end   : Target cell as ``(row, column)``.
+
+        Returns:
+            The next cell from ``start`` toward ``end``.
         """
         max_pos = sys.maxsize
         maz_path = [[max_pos for _ in row] for row in maze]
@@ -371,7 +482,7 @@ class GhostBase:
             player_pos: tuple[int, int],
             ghost_pos: tuple[int, int]
             ) -> float:
-        """Method used to calculate distance between two location."""
+        """Calculate distance between two location."""
         distance: float = 0
         distance = int(math.sqrt(
             (player_pos[0] - ghost_pos[0])**2 +
@@ -387,7 +498,7 @@ class GhostBase:
             maze: list[list[int]],
             maze_dim: tuple[int, int]
             ) -> tuple[int, int]:
-        """This method randomly determine a valid single step move."""
+        """Determine a valid single step move."""
         directions = [
             Direction.NORD,
             Direction.SUD,
@@ -427,9 +538,18 @@ class GhostBase:
             maze: list[list[int]],
             rand: int
             ) -> tuple[int, int]:
-        """This method determine a place opposite to the player and return
-        next valid step to run away from player. Used from ghost while
-        frightened."""
+        """Choose a legal step away from the player while frightened.
+
+        Args:
+            ghost    : Current ghost position.
+            player   : Current player position.
+            maze_dim : Maze dimensions as ``(rows, columns)``.
+            maze     : Maze wall-bitmask grid.
+            rand     : Randomness threshold controlling escape behavior.
+
+        Returns:
+            The next row and column for the ghost.
+        """
         row = ghost[0]
         col = ghost[1]
         if randint(0, 100) > rand:
@@ -462,8 +582,18 @@ class GhostBase:
                 col: int,
                 maze_dim: tuple[int, int]
                 ) -> tuple[int, int]:
-        """Method used by ghosts to catch the player. There is a
-        random parameter to variate ghosts movement, making it unpredictable.
+        """Choose a step toward the player with randomized movement.
+
+        Args:
+            maze       : Maze wall-bitmask grid.
+            rand       : Randomness threshold controlling chase behavior.
+            player_pos : Player position as ``(row, column)``.
+            row        : Ghost's current row.
+            col        : Ghost's current column.
+            maze_dim   : Maze dimensions as ``(rows, columns)``.
+
+        Returns:
+            The next row and column for the ghost.
         """
         result: tuple[int, int] | bool = False
         if randint(0, 100) > rand:
@@ -476,7 +606,7 @@ class GhostBase:
         return (row, col)
 
     def ghost_timer(self, ghost: GhostBase) -> None:
-        """Method used to let ghosts turn back normal after set_timer."""
+        """Let ghosts turn back normal after set_timer."""
         ghost.timer -= 1
         if ghost.timer <= ghost.flashing_duration:
             ghost.flashing = True
@@ -486,9 +616,9 @@ class GhostBase:
             ghost.flashing = False
 
     def get_direction(self, ghost: GhostBase, y: int, x: int) -> None:
-        """This method calculate and set ghosts movement direction."""
-        y_start = ghost.g_row
-        x_start = ghost.g_col
+        """Calculate and set ghosts movement direction."""
+        y_start = ghost.from_row
+        x_start = ghost.from_col
         if x_start - x == 1:
             ghost.direction = Direction.OVEST
         elif x_start - x == -1:
@@ -500,8 +630,9 @@ class GhostBase:
 
     @classmethod
     def frighten_ghosts(cls, ghosts: list[GhostBase]) -> None:
-        """Simple method to set all ghosts to frightened."""
+        """Set all ghosts to frightened."""
         for ghost in ghosts:
             if ghost.state is not GhostState.EATEN:
                 ghost.state = GhostState.FRIGHTENED
+                ghost.flashing = False
                 ghost.timer = ghost.set_timer

@@ -11,7 +11,10 @@ import sys
 
 from .cli_args_parser import ArgumentParser
 from .cli_validator_input import CLIValidator
-from ..core.parsing.parsey import ConfigLoader, GameConfig
+from ..core.parsing.parsey import (
+    ConfigLoader,
+    GameConfig,
+)
 from ..core.entities.pacman import PacmanPlayer
 
 logger = logging.getLogger(__name__)
@@ -32,9 +35,9 @@ class CLIApplication:
             GameConfig: The loaded and validated game configuration.
 
         Raises:
-            CliParsingError: If the command-line arguments are invalid.
-            CliValidationError: If the configuration file path is invalid.
-            ConfigError: If the configuration file cannot be parsed.
+            CliParsingError    : If command-line arguments are invalid.
+            CliValidationError : If configuration file path is invalid.
+            ConfigError        : If configuration file cannot be parsed.
         """
         # ----------------------------------------------------------------
         # 1. Parse arguments from sys.argv[1:].
@@ -53,7 +56,7 @@ class CLIApplication:
         config = config_loader.load()
 
         # ----------------------------------------------------------------
-        # 4. Print a summary (info, not a replacement for returning)
+        # 4. Print a summary Info
         # ----------------------------------------------------------------
         sys.stdout.write(
             f"[INFO] Configuration loaded from '{args.config_path}':\n"

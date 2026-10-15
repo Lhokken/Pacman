@@ -2,12 +2,6 @@
 
 Displays the paused game beneath a semi-transparent overlay, featuring a
 vertical menu (Resume / Settings / Main menu).
-
-NOTE: The `GamePage` received by the constructor is **reused** upon resuming,
-not recreated. The HUD timer survives the pause because the `GamePage
-instance remains active in this menu's `self.game_page` field.
-
-Layout is delegated to `PauseLayout`.
 """
 
 from __future__ import annotations
@@ -30,11 +24,10 @@ logger = logging.getLogger(__name__)
 
 
 class PauseMenu(Scene):
-    """Scena del menu di pausa.
+    """Pause scene that overlays a live game page.
 
-    Disegna la partita sottostante tramite `game_page.draw()`, applica
-    un overlay semi-trasparente e mostra un menu verticale navigabile
-    da tastiera.
+    The active game remains visible beneath a translucent overlay and a
+    keyboard-navigable vertical menu.
     """
 
     # =========================================================
@@ -93,6 +86,8 @@ class PauseMenu(Scene):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.app.running = False
+            elif event.type == pygame.VIDEORESIZE:
+                self.app.handle_window_resize(event.w, event.h)
             elif event.type == pygame.KEYDOWN:
                 self._handle_key(event)
 
@@ -116,29 +111,25 @@ class PauseMenu(Scene):
             self.buttons[self.selected_index].handle_event(event)
 
     def on_resize(self, width: int, height: int) -> None:
-        """Inoltra il resize alla GamePage sottostante.
+        """Forward the resize event to the underlying game page.
 
-        PauseMenu disegna la GamePage come sfondo: se la finestra
-        cambia dimensione mentre siamo in pausa, la GamePage deve
-        ricalcolare il proprio layout, altrimenti resta con la
-        cache vecchia e appare "in alto a sinistra".
+        The game page is drawn as the pause background, so it must refresh
+        its layout when the window size changes.
 
         Args:
-            width : Nuova larghezza della surface in pixel.
-            height: Nuova altezza della surface in pixel.
+            width: New surface width in pixels.
+            height: New surface height in pixels.
         """
         self.game_page.on_resize(width, height)
-        # L'overlay viene ricreato al prossimo draw perché
-        # `_draw_overlay` confronta la size con quella salvata.
 
     def draw(self, screen: Surface) -> None:
-        """Disegna la partita sotto OVERLAY , l'overlay e il menu.
+        """Draw the paused game, translucent overlay, and menu.
 
         Args:
-            screen: Target surface.
+            screen: Destination surface.
         """
-        # OVERLAY ------------------------------------------
-        self._draw_overlay(screen)
+        # PALETTE -----------------------------------------
+        screen.fill(self.theme.palette.DARK)
         # PAUSE --------------------------------------------
         self._layout_pause_menu(screen)
         # BUTTON -------------------------------------------
@@ -155,6 +146,7 @@ class PauseMenu(Scene):
             screen : Surface from which to read the current
                      dimensions.
         """
+        # TODO: FUNZIONE PROIBITA! get_width(), get_height()
         block = self._pause_layout.compute(
             screen.get_width(),
             screen.get_height(),
@@ -164,6 +156,7 @@ class PauseMenu(Scene):
         title_surface = (
             self.font_title.render("PAUSE")
         )
+        # TODO: FUNZIONE PROIBITA! get_rect()
         title_rect = title_surface.get_rect(
             center=(screen.get_width() // 2, block.title_center_y)
         )
@@ -177,26 +170,6 @@ class PauseMenu(Scene):
         ):
             button.rect = rect
             button.set_selected(i == self.selected_index)
-
-    # =========================================================
-    #   layout - Overlay
-    # =========================================================
-    def _draw_overlay(self, screen: Surface) -> None:
-        """Disegna la partita sottostante e applica l'overlay.
-
-        L'overlay viene ricreato solo se la dimensione dello schermo
-        cambia, per evitare di riallocare una surface ogni frame.
-
-        Args:
-            screen: Surface di destinazione.
-        """
-        self.game_page.draw(screen)
-
-        w, h = screen.get_size()
-        if self._overlay is None or self._overlay.get_size() != (w, h):
-            self._overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-            self._overlay.fill(self.theme.palette.OVERLAY_RGBA)
-        screen.blit(self._overlay, (0, 0))
 
     # =========================================================
     #   Buttons
@@ -236,17 +209,22 @@ class PauseMenu(Scene):
     #   Actions
     # =========================================================
     def _resume_game(self) -> None:
-        """Riprende la partita tornando alla `GamePage` viva."""
+        """Resume the existing game page."""
         self.app.switch_scene(self.game_page)
 
     def _go_main_menu(self) -> None:
-        """Torna al menu principale, abbandonando la partita."""
+        """Return to the main menu and abandon the current game."""
         from .main_menu import MainMenu
-        self.app.switch_scene(MainMenu(self.app))
+        self.app.switch_scene(
+            MainMenu(self.app)
+        )
 
     def _show_impostazioni(self) -> None:
         """Show the cheat settings page."""
         from .cheat import CheatPage
         self.app.switch_scene(
-            CheatPage(self.app, self.game_page)
+            CheatPage(
+                self.app,
+                self.game_page
+            )
         )

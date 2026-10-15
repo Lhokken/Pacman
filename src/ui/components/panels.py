@@ -14,6 +14,7 @@ from pygame.surface import Surface
 
 from .bitmap_font import BitmapFont
 from ..managers.asset_exceptions import AssetNotFoundError
+from ..managers.image_scaling import ImageScaler
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,7 @@ class Panel(ABC):
             title_lines: List of strings for the title (each on new line).
             font: Font used for content.
             title_font: Font used for title lines.
+            align_x: Horizontal alignment of panel content.
         """
         self.rect = rect
         self.title_lines = title_lines
@@ -146,7 +148,9 @@ class Panel(ABC):
             raise AssetNotFoundError(path)
         try:
             img_icon = pygame.image.load(path).convert_alpha()
-            return pygame.transform.scale(img_icon, (size, size))
+            return ImageScaler.nearest_neighbor(
+                img_icon, (size, size)
+            )
         except pygame.error as e:
             raise AssetNotFoundError(path) from e
 
@@ -155,8 +159,8 @@ class Panel(ABC):
         """Load and scale the fruit icon.
 
         Args:
-            path: Path to the icon file.
-            size: Desired size in pixels.
+            path : Path to the icon file.
+            size : Desired size in pixels.
 
         Returns:
             Scaled surface.
@@ -198,11 +202,11 @@ class ValuePanel(Panel, ABC):
         """Initialize the score panel.
 
         Args:
-            rect: Rectangle for the panel.
-            title_lines: stringa per titolo,
-            font_value: Font for the score value (white, medium).
-            font_title: Font for the title lines (yellow, large).
-            align_x: Valore centrato
+            rect        : Rectangle for the panel.
+            title_lines : string for title,
+            font_value  : Font for the score value (white, medium).
+            font_title  : Font for the title lines (yellow, large).
+            align_x     : Centered value
         """
         super().__init__(
             rect,
@@ -286,9 +290,9 @@ class HighscorePanel(ValuePanel):
         """Initialize the highscore panel.
 
         Args:
-            rect: Rectangle for the panel.
-            font_value: Font for the highscore value (white, medium).
-            font_title: Font for the title lines (yellow, large).
+            rect       : Rectangle for the panel.
+            font_value : Font for the highscore value (white, medium).
+            font_title : Font for the title lines (yellow, large).
         """
         super().__init__(
             rect,
@@ -296,7 +300,6 @@ class HighscorePanel(ValuePanel):
             font_value,
             font_title
         )
-        """TODO: syncro highscore with json savefile"""
         self.highscore = 0
 
     # Pubblic Methods ---------------------------------------------------------
@@ -438,10 +441,11 @@ class LivesPanel(IconStripPanel):
         """Initialize the lives panel.
 
         Args:
-            rect: Rectangle for the panel.
-            font_white: Font for the label.
-            pacman_icon_path: Path to the Pac-Man icon image.
-            icon_size: Size (width/height) of each icon.
+            rect             : Rectangle for the panel.
+            font_white       : Font for the label.
+            font_title_small : Small title font used by the base panel.
+            pacman_icon_path : Path to the Pac-Man icon image.
+            icon_size        : Size (width/height) of each icon.
         """
         super().__init__(
             rect, [""],
@@ -486,6 +490,8 @@ class ImagePanel(Panel, ABC):
             align_x,
         )
         self._image = self._load_png(img_path)
+        self._fit_cache_size: tuple[int, int] | None = None
+        self._fit_cache_image: Surface | None = None
 
     # Private Methods ---------------------------------------------------------
     # =========================================================================
@@ -510,7 +516,15 @@ class ImagePanel(Panel, ABC):
     def _place_image(
         self, img: Surface, content_rect: pygame.Rect
     ) -> pygame.Rect:
-        """Combina ANCHOR verticale e align_x orizzontale."""
+        """Place an image using its vertical anchor and horizontal alignment.
+
+        Args:
+            img          : Image to position.
+            content_rect : Rectangle available for the image.
+
+        Returns:
+            Destination rectangle for the image.
+        """
         kwargs: dict = {}
 
         if self.ANCORA == self.ANCORA_BOTTOM:
@@ -552,7 +566,16 @@ class ImagePanel(Panel, ABC):
         max_widht: int,
         max_height: int,
     ) -> Surface:
-        """Fit the img. TODO: docstring."""
+        """Fit an image within the available width and height.
+
+        Args:
+            img       : Source image.
+            max_widht : Maximum allowed image width in pixels.
+            max_height : Maximum allowed image height in pixels.
+
+        Returns:
+            The source image or a cached nearest-neighbor resized image.
+        """
         scale = min(
             max_widht / img.get_width(),
             max_height / img.get_height(),
@@ -566,19 +589,25 @@ class ImagePanel(Panel, ABC):
             max(1, int(img.get_width() * scale)),
             max(1, int(img.get_height() * scale)),
         )
-        return pygame.transform.smoothscale(img, size)
+        if (
+            size == self._fit_cache_size
+            and self._fit_cache_image is not None
+        ):
+            return self._fit_cache_image
+
+        self._fit_cache_image = ImageScaler.nearest_neighbor(img, size)
+        self._fit_cache_size = size
+        return self._fit_cache_image
 
 
 class LogoPanel(ImagePanel):
-    """Anchored to the bottom.
+    """Display a bottom-anchored logo with a school caption.
 
-    Both anchored to the bottom of the content_rect. `OFFSET_X` shifts
-    the logo (and caption) a few pixels to compensate for the asset's
-    asymmetrical padding.
+    ``OFFSET_X`` compensates for asymmetrical padding in the logo asset.
     """
 
     # ==============================================================
-    #   Variabili grafiche
+    #   Graphic settings
     # ==============================================================
     ANCHOR = ImagePanel.ANCORA_BOTTOM
     OFFSET_X = 0                       # Rule for centering
@@ -592,7 +621,14 @@ class LogoPanel(ImagePanel):
         title_font: BitmapFont,
         logo_path: Path,
     ) -> None:
-        """Fa TODO: docstring."""
+        """Initialize the logo panel.
+
+        Args:
+            rect       : Rectangle defining the panel area.
+            font       : Bitmap font used for the caption.
+            title_font : Bitmap font used for the panel title.
+            logo_path  : Path to the logo image.
+        """
         super().__init__(
             rect,
             [],
@@ -608,20 +644,21 @@ class LogoPanel(ImagePanel):
     def _draw_content(
         self, screen: Surface, content_rect: pygame.Rect
     ) -> None:
-        """Logo ancorato al fondo, con 'SCHOOL' sotto.
+        """Draw the logo and school caption, anchored to the panel bottom.
 
-        Non usa `_place_image`: il layout è custom (logo + caption
-        incolonnati e ancorati al fondo).
+        Args:
+            screen       : Surface receiving the logo and caption.
+            content_rect : Available panel content rectangle.
         """
         if self._image is None:
             return
 
-        # Caption renderizzata con `font` (font_white passato dal
+        # Caption rendered using `font` (font_white passed by
         # PanelManager).
         cap_surf = self.font.render(self.CAPTION)
         cap_h = cap_surf.get_height()
 
-        # Caption: appoggiata al fondo. -------------------------
+        # Caption: resting on the bottom. -------------------------
         cap_rect = cap_surf.get_rect(
             midbottom=(
                 content_rect.centerx, content_rect.bottom
@@ -632,7 +669,7 @@ class LogoPanel(ImagePanel):
 
         screen.blit(cap_surf, cap_rect)
         # --------------------------------------------------------
-        # Logo: area sopra la caption.
+        #   Logo: area above the caption.
         # --------------------------------------------------------
         img_bottom = (
             content_rect.bottom - cap_h - self.CAPTION_GAP
@@ -642,12 +679,19 @@ class LogoPanel(ImagePanel):
         if img_area_h <= 0:
             return
 
-        max_w = int(content_rect.width * self.MAX_WIDHT_RATIO)
-        max_h = int(img_area_h * self.MAX_HEIGHT_RATIO)
+        max_w = (
+            int(content_rect.width * self.MAX_WIDHT_RATIO)
+        )
+        max_h = (
+            int(img_area_h * self.MAX_HEIGHT_RATIO)
+        )
         img = self._fit(self._image, max_w, max_h)
 
         img_rect = img.get_rect(
-            midbottom=(content_rect.centerx, img_bottom)
+            midbottom=(
+                content_rect.centerx,
+                img_bottom
+            )
         )
         if self.OFFSET_X:
             img_rect.x += self.OFFSET_X
